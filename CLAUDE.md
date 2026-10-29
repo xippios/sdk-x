@@ -214,7 +214,8 @@ spends one billable lookup a night.
 `scripts/probe_accounts.py` measures whether the curated accounts still post and writes the
 gate P report (the plan §8; D5's thresholds are named constants in it). It prints its
 estimate first and calls nothing (`uv run scripts/probe_accounts.py`: N, the call plan and
-the plan's formula at the snapshot's prices, 9.375 USD at N=75); it spends only with
+the plan's formula at the snapshot's prices, 9.375 USD at N=75, the whole estimate, since
+its ten-post samples ask for no expansion); it spends only with
 `--spend --spend-cap USD`, the key through direnv
 (`direnv exec ~/github/sdk uv run scripts/probe_accounts.py --spend --spend-cap 12`),
 refuses when the estimate exceeds the cap and stops before a request that could pass it.
