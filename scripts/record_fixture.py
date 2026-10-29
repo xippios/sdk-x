@@ -183,7 +183,8 @@ The one expansion brings a post of the requested user and no user object, so an 
 objects are the requested users' and their posts only (Johannes, 2026-10-29), except in
 the List wrappers' answers, whose posts and users are the List's members', other accounts:
 there ``NOT_ADMITTED_FOR`` refuses ``url`` for ``get_lists_members``, and the field values
-admitted carry nothing of other accounts the rewrite leaves.
+admitted carry nothing of other accounts the rewrite leaves but their ids, creation dates
+and public metrics, kept as sent (row 330, item 10).
 """
 NOT_ADMITTED_FOR = {"get_lists_members": {"user.fields": frozenset({"url"})}}
 """Values of ``ADMITTED`` a wrapper refuses: a List's members are other accounts, and a
