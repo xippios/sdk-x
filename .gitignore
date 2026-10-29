@@ -18,6 +18,10 @@ build/
 .envrc
 .envrc.*
 
+# operator-only files: the curated account list, the probe's cache and its reports
+# (CLAUDE.md, Operator-only files); X Content never leaves this directory
+.local/
+
 # editors
 .idea/
 .vscode/
