@@ -10,13 +10,14 @@ free text rewritten (D1): ``lookup_users`` replays ``get_users_by_usernames``'
 ``unbalanced_parenthesis``; ``count_posts`` ``get_posts_counts_all/usda_by_day`` and
 ``usda_by_day_page_2``; ``get_list_posts`` ``get_lists_posts/xdevelopers_list_ten`` and
 ``unknown_id``; ``get_conversation_posts`` ``search_posts_recent/usda_conversation``;
-``get_usage`` ``get_usage/seven_days``. Two answers no recording gave are built in memory
-from recorded ones and named as such: a lookup that finds no username, and a page of 99
-posts, eleven copies of @USDA's nine, for the MCP result cap.
+``get_usage`` ``get_usage/seven_days``. Three answers no recording gave are built in
+memory from recorded ones and named as such: a lookup that finds no username, a page of
+100 posts with 280-character texts and 930 count buckets, the last two for the MCP
+result caps.
 
-Then the adapters: the MCP server through core's in-process client (its seven tools, a
-cut result's note, the error answers) and the HTTP router (its routes, an answer, a
-refusal as a problem); then the live tests' nightly rule (D3).
+Then the adapters: the MCP server through core's in-process client (its seven tools, its
+caps, a whole page and a cut one, the error answers) and the HTTP router (its routes, an
+answer, a refusal as a problem); then the live tests' nightly rule (D3).
 """
 
 import importlib.util
@@ -92,13 +93,15 @@ def body(wrapper: str, case: str) -> Any:
 
 
 def assert_meta(meta: ResultMeta, endpoint: str, before: datetime, after: datetime) -> None:
-    """What every task's meta holds: the slug, the operation, now, no total, no vintage."""
+    """What every task's meta holds: the slug, the operation, now; no release time, no
+    vintage, no total (row 338 item 2: X states no release time for a page)."""
     assert meta.source == "x"
     assert meta.endpoint == endpoint
     assert_time_between(meta.retrieved_at, before, after)
-    assert meta.total is None
-    assert meta.vintage is None
+    assert meta.published_at is None
     assert meta.published_at_naive is False
+    assert meta.vintage is None
+    assert meta.total is None
 
 
 def call[T](task: Callable[[], Result[T]]) -> tuple[Result[T], datetime, datetime]:
@@ -117,7 +120,6 @@ def test_lookup_users_returns_the_found_and_the_problems(replay_fixture: ReplayF
     result, before, after = call(lambda: tasks.lookup_users(["XDevelopers", "xippiosnouser01"]))
     assert sent_query(route) == recorded("get_users_by_usernames", "partial_errors")
     assert_meta(result.meta, "getUsersByUsernames", before, after)
-    assert result.meta.published_at is None, "users are no publication"
     assert result.meta.request == {
         "usernames": ["XDevelopers", "xippiosnouser01"],
         "user.fields": USER_FIELDS,
@@ -148,7 +150,6 @@ def test_lookup_users_with_the_most_recent_post(replay_fixture: ReplayFixture) -
         "expansions": ["most_recent_post_id"],
         "post.fields": POST_FIELDS,
     }
-    assert result.meta.published_at is None, "the data are users; the post is an include"
     page = result.data
     assert page.data is not None
     assert page.includes is not None
@@ -182,7 +183,7 @@ def test_lookup_users_refuses_before_the_call(respx_mock: respx.MockRouter) -> N
 
 
 def test_get_user_posts(replay_fixture: ReplayFixture) -> None:
-    """One page of @USDA's posts; ``published_at`` is the newest post's ``created_at``."""
+    """One page of @USDA's posts, newest first, each with its own ``created_at``."""
     route = replay_fixture("get_users_posts", "usda_ten")
     result, before, after = call(lambda: tasks.get_user_posts(USDA))
     assert sent_query(route) == recorded("get_users_posts", "usda_ten")
@@ -192,10 +193,7 @@ def test_get_user_posts(replay_fixture: ReplayFixture) -> None:
     assert page.data is not None
     assert page.meta is not None
     assert len(page.data) == page.meta.result_count == 9
-    assert result.meta.published_at == datetime(2026, 10, 29, 14, 0, 59, tzinfo=UTC)
-    assert result.meta.published_at == max(
-        post.created_at for post in page.data if post.created_at is not None
-    )
+    assert page.data[0].created_at == datetime(2026, 10, 29, 14, 0, 59, tzinfo=UTC)
     assert {post.text for post in page.data} == {TEXT}
     assert page.meta.next_token
 
@@ -251,8 +249,7 @@ def test_search_recent_posts(replay_fixture: ReplayFixture) -> None:
     page = result.data
     assert page.data is not None
     assert len(page.data) == 10
-    assert result.meta.published_at == page.data[0].created_at
-    assert result.meta.published_at == datetime(2026, 10, 29, 17, 14, 54, tzinfo=UTC)
+    assert page.data[0].created_at == datetime(2026, 10, 29, 17, 14, 54, tzinfo=UTC)
 
 
 def test_search_recent_posts_second_page(replay_fixture: ReplayFixture) -> None:
@@ -286,14 +283,13 @@ def test_search_recent_posts_refused_query(replay_fixture: ReplayFixture) -> Non
 
 
 def test_count_posts(replay_fixture: ReplayFixture) -> None:
-    """One page of 31 days by day over the full archive; counts have no publication time."""
+    """One page of 31 days by day over the full archive."""
     route = replay_fixture("get_posts_counts_all", "usda_by_day")
     result, before, after = call(
         lambda: tasks.count_posts("from:USDA", start_time=datetime(2026, 7, 31, tzinfo=UTC))
     )
     assert sent_query(route) == recorded("get_posts_counts_all", "usda_by_day")
     assert_meta(result.meta, "getPostsCountsAll", before, after)
-    assert result.meta.published_at is None
     assert result.meta.request == {
         "query": "from:USDA",
         "granularity": "day",
@@ -344,7 +340,7 @@ def test_get_list_posts(replay_fixture: ReplayFixture) -> None:
     page = result.data
     assert page.data is not None
     assert len(page.data) == 9
-    assert result.meta.published_at == datetime(2026, 10, 28, 23, 1, 39, tzinfo=UTC)
+    assert page.data[0].created_at == datetime(2026, 10, 28, 23, 1, 39, tzinfo=UTC)
 
 
 def test_get_list_posts_unknown_id_is_not_found(replay_fixture: ReplayFixture) -> None:
@@ -372,7 +368,7 @@ def test_get_conversation_posts(replay_fixture: ReplayFixture) -> None:
     assert page.data is not None
     assert {post.conversation_id for post in page.data} == {CONVERSATION}
     assert CONVERSATION in {post.id for post in page.data}
-    assert result.meta.published_at == datetime(2026, 10, 29, 21, 9, 36, tzinfo=UTC)
+    assert page.data[0].created_at == datetime(2026, 10, 29, 21, 9, 36, tzinfo=UTC)
 
 
 @pytest.mark.parametrize("conversation_id", ["", "@USDA", "1" * 20, "2115806101480337475 OR x"])
@@ -393,7 +389,6 @@ def test_get_usage(replay_fixture: ReplayFixture) -> None:
     result, before, after = call(lambda: tasks.get_usage())
     assert sent_query(route) == recorded("get_usage", "seven_days")
     assert_meta(result.meta, "getUsage", before, after)
-    assert result.meta.published_at is None
     assert result.meta.request == {
         "days": 7,
         "usage.fields": [
@@ -432,15 +427,31 @@ async def test_the_server_lists_the_seven_tools_in_order() -> None:
         assert "Price: " in tool.description, "every tool names its spend"
 
 
-@pytest.mark.anyio
-async def test_the_tools_keep_the_familys_bounds() -> None:
-    """``MCP_CAPS`` sets notes only: every tool keeps 200 rows or 64 KB (Johannes,
-    2026-10-29), and every note names the tool's own parameters."""
-    assert set(tasks.MCP_CAPS) <= set(tasks.__all__)
-    for name, cap in tasks.MCP_CAPS.items():
-        assert (cap.max_rows, cap.max_bytes) == (200, 65_536), name
+def test_the_caps_hold_a_whole_page() -> None:
+    """A page is one row to the cap, so ``max_rows`` stays 200; the bytes hold 100 posts or
+    100 users as core serialises them, ``count_posts`` keeps 64 KB, ``get_usage`` has no
+    entry, and every note names the tool's own parameters (row 338 item 3)."""
+    caps = tasks.MCP_CAPS
+    assert set(caps) == set(tasks.__all__) - {"get_usage"}
+    assert {name: (cap.max_rows, cap.max_bytes) for name, cap in caps.items()} == {
+        "lookup_users": (200, 160_000),
+        "get_user_posts": (200, 128_000),
+        "search_recent_posts": (200, 128_000),
+        "count_posts": (200, 65_536),
+        "get_list_posts": (200, 128_000),
+        "get_conversation_posts": (200, 128_000),
+    }
+    tokens = {
+        "lookup_users": "usernames",
+        "get_user_posts": "pagination_token",
+        "search_recent_posts": "next_token",
+        "count_posts": "start_time",
+        "get_list_posts": "pagination_token",
+        "get_conversation_posts": "next_token",
+    }
+    for name, cap in caps.items():
         assert cap.note is not None
-        assert any(word in cap.note for word in ("max_results", "usernames", "start_time")), name
+        assert tokens[name] in cap.note, name
 
 
 @pytest.mark.anyio
@@ -449,7 +460,7 @@ async def test_get_user_posts_tool_end_to_end(replay_fixture: ReplayFixture) -> 
     payload = await mcp_call(server, "x_get_user_posts", {"id": USDA})
     assert sent_query(route) == recorded("get_users_posts", "usda_ten")
     assert payload["meta"]["endpoint"] == "getUsersPosts"
-    assert payload["meta"]["published_at"] == "2026-10-29T14:00:59Z"
+    assert payload["meta"]["published_at"] is None
     assert payload["meta"]["request"]["max_results"] == 10
     assert len(payload["data"]["data"]) == 9
     assert payload["data"]["meta"]["next_token"]
@@ -468,21 +479,45 @@ async def test_lookup_users_tool_end_to_end(replay_fixture: ReplayFixture) -> No
 
 
 @pytest.mark.anyio
-async def test_a_page_over_the_byte_cap_comes_with_the_tools_note(
-    respx_mock: respx.MockRouter,
-) -> None:
-    """A full page of posts passes 64 KB of the tool's text: the result is a note and a
-    preview, the note naming ``max_results`` and the paging token. The answer, 99 posts,
-    is ``usda_ten``'s nine eleven times over, built in memory: no such page was recorded."""
-    answer = body("get_users_posts", "usda_ten")
-    answer["data"] = answer["data"] * 11
+async def test_a_page_of_100_posts_comes_whole(respx_mock: respx.MockRouter) -> None:
+    """100 posts with 280-character texts, the longest ``text`` holds, fit the post tools'
+    128,000 bytes: the page comes whole, its ``next_token`` with it. The answer is
+    ``search_posts_recent/usda_ten``'s ten posts ten times over, each text 280 letters,
+    built in memory: no such page was recorded."""
+    answer = body("search_posts_recent", "usda_ten")
+    answer["data"] = [{**post, "text": "x" * 280} for post in answer["data"] * 10]
     answer["meta"]["result_count"] = len(answer["data"])
-    respx_mock.get(f"https://api.x.com/2/users/{USDA}/tweets").mock(
+    respx_mock.get("https://api.x.com/2/tweets/search/recent").mock(
         return_value=httpx.Response(200, json=answer)
     )
-    payload = await mcp_call(server, "x_get_user_posts", {"id": USDA, "max_results": 100})
+    text = await mcp_call_text(
+        server, "x_search_recent_posts", {"query": "from:USDA", "max_results": 100}
+    )
+    assert 65_536 < len(text.encode()) <= 128_000, "over the default, under the tool's own"
+    payload = json.loads(text)
+    assert "note" not in payload
+    assert len(payload["data"]["data"]) == 100
+    assert payload["data"]["meta"]["next_token"] == answer["meta"]["next_token"]
+
+
+@pytest.mark.anyio
+async def test_minute_counts_over_a_long_range_are_cut_with_the_note(
+    respx_mock: respx.MockRouter,
+) -> None:
+    """930 buckets pass the 64 KB ``count_posts`` keeps: the result is a note and a
+    preview, the note pointing to day or hour buckets and a shorter range. The answer is
+    ``get_posts_counts_all/usda_by_day``'s 31 buckets thirty times over, standing for 930
+    minutes, built in memory: no minute counts were recorded."""
+    answer = body("get_posts_counts_all", "usda_by_day")
+    answer["data"] = answer["data"] * 30
+    respx_mock.get("https://api.x.com/2/tweets/counts/all").mock(
+        return_value=httpx.Response(200, json=answer)
+    )
+    payload = await mcp_call(
+        server, "x_count_posts", {"query": "from:USDA", "granularity": "minute"}
+    )
     assert set(payload) == {"note", "preview"}
-    note = tasks.MCP_CAPS["get_user_posts"].note
+    note = tasks.MCP_CAPS["count_posts"].note
     assert note is not None
     assert payload["note"].endswith(f"over the cap of 65536; {note}")
     assert len(payload["preview"].encode()) <= 65_536

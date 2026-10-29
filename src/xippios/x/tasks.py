@@ -11,7 +11,7 @@ users, Lists (gate P, 2026-10-29).
 Spend per call, at the prices of ``docs/upstream/pages/pricing.md`` (snapshot of
 2026-10-29), a post or user read again the same UTC day not billed again (a soft
 guarantee, the page says): ``lookup_users`` 0.010 USD a user found, up to 100 (1.00 USD),
-and 0.005 USD more a user with ``most_recent_post``; ``get_user_posts``,
+and 0.005 USD more a user with ``most_recent_post`` (up to 1.50 USD); ``get_user_posts``,
 ``search_recent_posts``, ``get_list_posts`` and ``get_conversation_posts`` 0.005 USD a
 post returned, up to 100 (0.50 USD), a List's posts counted as posts, the upper bound,
 since the page does not say under which resource they are billed; ``count_posts`` 0.010
@@ -28,11 +28,11 @@ the answer arrived (the client caches nothing), ``meta.request`` the parameters 
 under the names X takes (``user.fields``, ``max_results``), a token's value ``REDACTED``
 by core's credential rule, which takes ``token`` as a whole word (core gap row 326), and
 ``meta.total`` ``None``: X reports no count of the records matching a request, only
-``result_count``, the items of this page (ADR-0012). ``meta.published_at`` is the newest
-``created_at`` among the posts in ``data``, a post's publication time as X states it
-(Johannes, 2026-10-29), and ``None`` for a page without posts in ``data`` (users, counts,
-usage, an empty search), which has no publication time (conventions §4, ADR-0022);
-``meta.vintage`` is ``None``, X having no release identifier.
+``result_count``, the items of this page (ADR-0012). ``meta.published_at`` is ``None``
+for every task: X states no release time for a page, each post carries its own
+``created_at``, and a newest time the package computes across records is no release time
+(ADR-0022, reading of 2026-10-29; conventions §4; row 338 item 2). ``meta.vintage`` is
+``None``, X having no release identifier.
 
 A 200 that carries ``errors`` is returned as the page (partial errors), except that a page
 without ``data`` whose every problem is ``resource-not-found`` (a user id or a List id X
@@ -57,7 +57,6 @@ from xippios.x.models import (
     GetUsersByUsernamesResponse,
     GetUsersPostsResponse,
     Granularity,
-    Post,
     PostField,
     Problem,
     SearchPostsRecentResponse,
@@ -83,47 +82,60 @@ BULK_TASKS: frozenset[str] = frozenset()
 
 MCP_CAPS: Mapping[str, ResultCap] = {
     "lookup_users": ResultCap(
-        note="look up fewer usernames in a call (about 40 fit) to see the rest"
+        max_bytes=160_000,
+        note=("look up fewer usernames in a call, about 70 with most_recent_post, to see the rest"),
     ),
     "get_user_posts": ResultCap(
+        max_bytes=128_000,
         note=(
-            "ask for fewer posts with max_results (about 50 fit) and page on with "
-            "pagination_token to see the rest"
-        )
+            "ask for fewer posts with max_results, or narrow start_time and end_time, and page "
+            "on with pagination_token to see the rest"
+        ),
     ),
     "search_recent_posts": ResultCap(
+        max_bytes=128_000,
         note=(
-            "ask for fewer posts with max_results (about 50 fit) and page on with "
-            "next_token to see the rest"
-        )
+            "ask for fewer posts with max_results, or narrow start_time and end_time, and page "
+            "on with next_token to see the rest"
+        ),
     ),
     "count_posts": ResultCap(
         note=(
-            "count by day, or bring start_time and end_time closer, about 25 days for hour "
-            "buckets or 12 hours for minute buckets, to see the rest"
-        )
+            "minute buckets over more than about 13 hours pass the cap: count by day or hour, "
+            "the usual choices, whose 31 days fit, or bring start_time and end_time within "
+            "about 13 hours, to see the rest"
+        ),
     ),
     "get_list_posts": ResultCap(
+        max_bytes=128_000,
         note=(
-            "ask for fewer posts with max_results (about 50 fit) and page on with "
-            "pagination_token to see the rest"
-        )
+            "ask for fewer posts with max_results and page on with pagination_token to see the rest"
+        ),
     ),
     "get_conversation_posts": ResultCap(
-        note=(
-            "ask for fewer posts with max_results (about 50 fit) and page on with "
-            "next_token to see the rest"
-        )
+        max_bytes=128_000,
+        note=("ask for fewer posts with max_results and page on with next_token to see the rest"),
     ),
 }
-"""Per-tool notes, the family's bounds kept: 200 rows or 64 KB (conventions §8, ADR-0016).
+"""Per-tool caps that hold a whole page (conventions §8; ADR-0016 decisions 2 and 4; row 338
+item 3).
 
-A task's result is one page, a model rather than a list, so the 64 KB byte bound is the
-one that cuts: measured on the recorded fixtures, a post takes about 1,000 bytes of the
-tool's JSON text, a user about 1,400 and a count's bucket about 90, so a page of more than
-about 50 posts or 40 users, or of more than about 700 buckets (31 days of hours), passes
-it. Each note names the parameters that narrow the tool's result (ADR-0016 decision 2);
-``get_usage``, at most 90 days, stays under it.
+A task's result is one page, a model rather than a list, so it is one row to the cap and
+``max_rows`` stays the family's 200; the byte bound is the one that cuts, and a cut turns
+the whole page into a note and a preview, its ``next_token`` lost. Measured on the recorded
+fixtures as core serialises them (compact JSON, ``None`` fields included): a post is about
+960 bytes besides its ``text``, at most 280 characters, a user about 800 besides its free
+texts (a ``description`` of at most 160 characters, a ``name`` of 50, a ``location`` of
+30), a count's bucket 77 bytes, the envelope about 600. So 100 posts with 280-character
+ASCII texts take 100 x (960 + 280) + 600 = 124,600 bytes, under 128,000 for the post
+tools; 100 users with the longest free texts 100 x (800 + 240) + 600 = 104,600, under
+160,000 for ``lookup_users``, which leaves room for non-ASCII text, and with
+``most_recent_post`` each user brings a post besides, 100 x (1,040 + 1,240) + 600 =
+228,600, so about 70 users with their posts fit. ``count_posts`` keeps the family's
+64 KB: a page of 31 days of hours, 744 buckets, takes 744 x 78 + 400 = 58,432 bytes, and
+only minutes over more than about 13 hours (835 buckets) pass it. ``get_usage``, at most
+90 days, stays under the default and has no entry. Each note names the tool's own
+parameters.
 """
 
 USER_FIELDS = (
@@ -167,18 +179,9 @@ def _values(fields: Sequence[Any]) -> list[str]:
     return [str(field) for field in fields]
 
 
-def _newest(posts: Sequence[Post] | None) -> datetime | None:
-    """The newest ``created_at`` among ``posts``, else ``None`` (the module docstring)."""
-    times = [post.created_at for post in posts or () if post.created_at is not None]
-    return max(times, default=None)
-
-
-def _meta(
-    endpoint: str, request: dict[str, Any], posts: Sequence[Post] | None = None
-) -> ResultMeta:
-    return ResultMeta(
-        source=SOURCE, endpoint=endpoint, published_at=_newest(posts), request=request
-    )
+def _meta(endpoint: str, request: dict[str, Any]) -> ResultMeta:
+    """The meta every task gives: no ``published_at``, no ``vintage``, no ``total``."""
+    return ResultMeta(source=SOURCE, endpoint=endpoint, request=request)
 
 
 def _when(name: str, value: datetime | None) -> str | None:
@@ -210,7 +213,8 @@ async def lookup_users_async(
     (followers, following, posts, lists, likes, media), ``verified_type`` and ``url``; a
     username X does not find is a problem in ``errors`` beside them, and when none is
     found the task raises ``NotFoundError``. Price: 0.010 USD a user found, and 0.005 USD
-    more a user with ``most_recent_post``: at most 1.00 USD a call, 1.50 USD with it.
+    more a user with ``most_recent_post``: at most 1.00 USD a call for 100 users, up to
+    1.50 USD for 100 users with their posts.
 
     Args:
         usernames: 1 to 100 handles without ``@``, each up to 15 letters, digits or
@@ -284,7 +288,7 @@ async def get_user_posts_async(
         "end_time": _when("end_time", end_time),
         "post.fields": _values(POST_FIELDS),
     }
-    return Result(data=page, meta=_meta("getUsersPosts", request, page.data))
+    return Result(data=page, meta=_meta("getUsersPosts", request))
 
 
 get_user_posts = sync(get_user_posts_async)
@@ -337,7 +341,7 @@ async def search_recent_posts_async(
         "end_time": _when("end_time", end_time),
         "post.fields": _values(POST_FIELDS),
     }
-    return Result(data=page, meta=_meta("searchPostsRecent", request, page.data))
+    return Result(data=page, meta=_meta("searchPostsRecent", request))
 
 
 search_recent_posts = sync(search_recent_posts_async)
@@ -357,8 +361,9 @@ async def count_posts_async(
     buckets in ``data`` run oldest first, each with ``start``, ``end`` and
     ``post_count``. ``data.meta`` holds ``total_post_count``, the page's sum, and the
     ``next_token`` of the 31 days before. A page of hours holds 744 buckets, of minutes
-    44,640. Price: 0.010 USD a request, every request, since counts are not
-    deduplicated.
+    44,640: ``day`` or ``hour`` is the usual choice, and minutes over more than about 13
+    hours pass the MCP tool's result cap. Price: 0.010 USD a request, every request, since
+    counts are not deduplicated.
 
     Args:
         query: X's search syntax, at most 1,024 characters (``pages/post-counts.md``),
@@ -428,7 +433,7 @@ async def get_list_posts_async(
         "pagination_token": pagination_token,
         "post.fields": _values(POST_FIELDS),
     }
-    return Result(data=page, meta=_meta("getListsPosts", request, page.data))
+    return Result(data=page, meta=_meta("getListsPosts", request))
 
 
 get_list_posts = sync(get_list_posts_async)
@@ -470,7 +475,7 @@ async def get_conversation_posts_async(
         "next_token": next_token,
         "post.fields": _values(POST_FIELDS),
     }
-    return Result(data=page, meta=_meta("searchPostsRecent", request, page.data))
+    return Result(data=page, meta=_meta("searchPostsRecent", request))
 
 
 get_conversation_posts = sync(get_conversation_posts_async)
