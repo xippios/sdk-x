@@ -1,0 +1,113 @@
+{
+  "recorded_at": "2026-10-29T15:44:07.949433Z",
+  "request": {
+    "body": null,
+    "body_base64": false,
+    "content_type": null,
+    "method": "GET",
+    "url": "https://api.x.com/2/users/19649135/tweets?max_results=10&post.fields=created_at%2Clang%2Cpublic_metrics%2Cconversation_id"
+  },
+  "response": {
+    "body": "{\"data\":[{\"conversation_id\":\"2115789000682180921\",\"created_at\":\"2026-10-29T12:53:01.000Z\",\"edit_history_post_ids\":[\"2115789000682180921\"],\"id\":\"2115789000682180921\",\"lang\":\"en\",\"public_metrics\":{\"bookmark_count\":0,\"impression_count\":1712,\"like_count\":6,\"quote_count\":0,\"reply_count\":1,\"repost_count\":1},\"text\":\"[text rewritten]\"},{\"conversation_id\":\"2115472681608855957\",\"created_at\":\"2026-10-28T15:56:05.000Z\",\"edit_history_post_ids\":[\"2115472681608855957\"],\"id\":\"2115472681608855957\",\"lang\":\"en\",\"public_metrics\":{\"bookmark_count\":1,\"impression_count\":3031,\"like_count\":14,\"quote_count\":0,\"reply_count\":1,\"repost_count\":6},\"text\":\"[text rewritten]\"},{\"conversation_id\":\"2115442236141830335\",\"created_at\":\"2026-10-28T13:55:06.000Z\",\"edit_history_post_ids\":[\"2115442236141830335\"],\"id\":\"2115442236141830335\",\"lang\":\"en\",\"public_metrics\":{\"bookmark_count\":5,\"impression_count\":2809,\"like_count\":36,\"quote_count\":1,\"reply_count\":2,\"repost_count\":14},\"text\":\"[text rewritten]\"},{\"conversation_id\":\"2115406317103800328\",\"created_at\":\"2026-10-28T11:32:23.000Z\",\"edit_history_post_ids\":[\"2115406317103800328\"],\"id\":\"2115406317103800328\",\"lang\":\"en\",\"public_metrics\":{\"bookmark_count\":4,\"impression_count\":5154,\"like_count\":62,\"quote_count\":2,\"reply_count\":3,\"repost_count\":33},\"text\":\"[text rewritten]\"},{\"conversation_id\":\"2115405157831729488\",\"created_at\":\"2026-10-28T11:27:46.000Z\",\"edit_history_post_ids\":[\"2115405157831729488\"],\"id\":\"2115405157831729488\",\"lang\":\"en\",\"public_metrics\":{\"bookmark_count\":0,\"impression_count\":1372,\"like_count\":0,\"quote_count\":0,\"reply_count\":0,\"repost_count\":10},\"text\":\"[text rewritten]\"},{\"conversation_id\":\"2115097447764472234\",\"created_at\":\"2026-10-27T15:05:02.000Z\",\"edit_history_post_ids\":[\"2115097447764472234\"],\"id\":\"2115097447764472234\",\"lang\":\"en\",\"public_metrics\":{\"bookmark_count\":2,\"impression_count\":2863,\"like_count\":19,\"quote_count\":0,\"reply_count\":1,\"repost_count\":8},\"text\":\"[text rewritten]\"},{\"conversation_id\":\"2115094175473451381\",\"created_at\":\"2026-10-27T14:52:02.000Z\",\"edit_history_post_ids\":[\"2115094175473451381\"],\"id\":\"2115094175473451381\",\"lang\":\"en\",\"public_metrics\":{\"bookmark_count\":5,\"impression_count\":4368,\"like_count\":51,\"quote_count\":2,\"reply_count\":5,\"repost_count\":17},\"text\":\"[text rewritten]\"},{\"conversation_id\":\"2115057713088491845\",\"created_at\":\"2026-10-27T12:27:09.000Z\",\"edit_history_post_ids\":[\"2115057713088491845\"],\"id\":\"2115057713088491845\",\"lang\":\"en\",\"public_metrics\":{\"bookmark_count\":1,\"impression_count\":3496,\"like_count\":33,\"quote_count\":0,\"reply_count\":1,\"repost_count\":11},\"text\":\"[text rewritten]\"},{\"conversation_id\":\"2115052436838572457\",\"created_at\":\"2026-10-27T12:06:11.000Z\",\"edit_history_post_ids\":[\"2115052436838572457\"],\"id\":\"2115052436838572457\",\"lang\":\"en\",\"public_metrics\":{\"bookmark_count\":2,\"impression_count\":3168,\"like_count\":33,\"quote_count\":0,\"reply_count\":1,\"repost_count\":10},\"text\":\"[text rewritten]\"},{\"conversation_id\":\"2115012956643577875\",\"created_at\":\"2026-10-27T09:29:18.000Z\",\"edit_history_post_ids\":[\"2115012956643577875\"],\"id\":\"2115012956643577875\",\"lang\":\"en\",\"public_metrics\":{\"bookmark_count\":0,\"impression_count\":1477,\"like_count\":0,\"quote_count\":0,\"reply_count\":0,\"repost_count\":6},\"text\":\"[text rewritten]\"}],\"meta\":{\"newest_id\":\"2115789000682180921\",\"next_token\":\"7140dibdnow9c7btwp0g7831q6orj1k0ehvhqzaxcjvp1\",\"oldest_id\":\"2115012956643577875\",\"result_count\":10}}",
+    "body_base64": false,
+    "headers": [
+      [
+        "date",
+        "Thu, 29 Oct 2026 15:44:06 GMT"
+      ],
+      [
+        "content-type",
+        "application/json; charset=utf-8"
+      ],
+      [
+        "perf",
+        "7402827104"
+      ],
+      [
+        "server",
+        "cloudflare envoy"
+      ],
+      [
+        "api-version",
+        "2.173"
+      ],
+      [
+        "cache-control",
+        "no-cache, no-store, max-age=0"
+      ],
+      [
+        "x-access-level",
+        "read"
+      ],
+      [
+        "x-frame-options",
+        "SAMEORIGIN"
+      ],
+      [
+        "x-transaction-id",
+        "d8b2966eed64f1a0"
+      ],
+      [
+        "x-xss-protection",
+        "0"
+      ],
+      [
+        "x-rate-limit-limit",
+        "10000"
+      ],
+      [
+        "x-rate-limit-reset",
+        "1793289543"
+      ],
+      [
+        "content-disposition",
+        "attachment; filename=json.json"
+      ],
+      [
+        "x-content-type-options",
+        "nosniff"
+      ],
+      [
+        "x-rate-limit-remaining",
+        "9997"
+      ],
+      [
+        "set-cookie",
+        "REDACTED"
+      ],
+      [
+        "set-cookie",
+        "REDACTED"
+      ],
+      [
+        "x-response-time",
+        "89"
+      ],
+      [
+        "origin-cf-ray",
+        "a5234cb4fc114f9a-ATL"
+      ],
+      [
+        "strict-transport-security",
+        "max-age=631138519; includeSubdomains"
+      ],
+      [
+        "x-served-by",
+        "t4_a"
+      ],
+      [
+        "vary",
+        "accept-encoding"
+      ],
+      [
+        "cf-cache-status",
+        "DYNAMIC"
+      ],
+      [
+        "cf-ray",
+        "a5234cb4fc114f9a-ZRH"
+      ]
+    ],
+    "status": 200
+  }
+}

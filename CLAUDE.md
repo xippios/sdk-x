@@ -14,7 +14,7 @@ the family rules every source shares are in `.claude/family.md`, which the next 
 | API base URL | `https://api.x.com/2` |
 | Documentation | https://docs.x.com/x-api/introduction, snapshotted in `docs/upstream/`; an OpenAPI or Swagger document a page names is kept beside it, its URL in `SPEC_URL` of `scripts/refresh_upstream.py` (`/refresh-upstream`) |
 | Credentials | `X_API_KEY` from the environment, sent as `Authorization: Bearer`: the app's Bearer Token, which X calls the App only Access Token (`docs/upstream/pages/application-only.md`), not the console's "API Key", the OAuth 1.0a consumer key |
-| Rate limit | 60 requests per minute, burst 1; a self-imposed pace (ADR-0010 decision 1), enforced client-side in `_client.py`. X documents no per-minute limit but per-endpoint windows of 15 minutes, per app with a Bearer Token (`docs/upstream/pages/rate-limits.md`): 300 on `GET /2/users/by` and on both counts endpoints, 3,500 on `GET /2/tweets`, 10,000 on `GET /2/users/:id/tweets`, 450 on `GET /2/tweets/search/recent`, 900 on `GET /2/lists/:id/tweets` and on `GET /2/lists/:id/members`, 50 on `GET /2/usage/tweets`; a 1/sec limit only on `GET /2/tweets/search/all` and `GET /2/spaces/by/creator_ids`, which this package does not wrap. The windows are never rationed ahead by the limiter; a spent one is answered at its 429, in `_client.py`'s `classify` alone (written in PR 3): a `RateLimitError` whose `retry_after` comes from `x-rate-limit-reset`, a Unix timestamp, with the 15-minute window as the fallback. No `QuotaPolicy`: one policy per client cannot track windows per endpoint (core gap row 318). ADR-0010 decisions 2 and 3; coordination row 304 |
+| Rate limit | 60 requests per minute, burst 1; a self-imposed pace (ADR-0010 decision 1), enforced client-side in `_client.py`. X documents no per-minute limit but per-endpoint windows of 15 minutes, per app with a Bearer Token (`docs/upstream/pages/rate-limits.md`): 300 on `GET /2/users/by` and on both counts endpoints, 3,500 on `GET /2/tweets`, 10,000 on `GET /2/users/:id/tweets`, 450 on `GET /2/tweets/search/recent`, 900 on `GET /2/lists/:id/tweets` and on `GET /2/lists/:id/members`, 50 on `GET /2/usage/tweets`; a 1/sec limit only on `GET /2/tweets/search/all` and `GET /2/spaces/by/creator_ids`, which this package does not wrap. The windows are never rationed ahead by the limiter; a spent one is answered at its 429, in `_client.py`'s `classify` alone: a `RateLimitError` whose `retry_after` comes from `x-rate-limit-reset`, a Unix timestamp, with the 15-minute window as the fallback. No `QuotaPolicy`: one policy per client cannot track windows per endpoint (core gap row 318). ADR-0010 decisions 2 and 3; coordination row 304. Observed on 2026-10-29: `x-rate-limit-limit: 2000` on `GET /2/users/by` against the page's 300, and 3,500, 10,000 and 300 on the other three wrapped operations as the page lists; the headers are the authority, the page's table the documented floor. `classify`'s whole mapping: Paths, names and errors below |
 | Write tools | no, this package is read-only |
 
 The snapshot listed in `docs/upstream/FETCHED.md` is the reference for names, parameters and semantics.
@@ -29,8 +29,12 @@ src/xippios/x/
   _client.py       the one configured AsyncClient (base URL, key, rate limit) and classify,
                    upstream's documented error shapes
   errors.py        the package's own error classes, where conventions §5 calls for one
-  models.py        pydantic models mirroring upstream payloads (UpstreamModel)
-  api/             endpoint wrappers, one module per upstream operation
+  models.py        pydantic models mirroring upstream payloads (UpstreamModel): the OpenAPI
+                   document's User, Post, Expansions, Problem, the four responses, and its
+                   enums (UserField, PostField, UserExpansion, PostExpansion, Granularity)
+  api/             endpoint wrappers, one module per upstream operation: get_users_by_usernames,
+                   get_posts_by_ids, get_users_posts, get_posts_counts_all; _query.py turns
+                   parameters into the text X takes and refuses values outside the bounds
   tasks.py         task functions; __all__ is what the adapters register, but BULK_TASKS,
                    the Python-only ones; MCP_CAPS any per-tool result caps
   mcp.py           xippios-x-mcp entry point
@@ -44,6 +48,8 @@ scripts/
   refresh_upstream.py    captures docs/upstream/ and writes FETCHED.md (/refresh-upstream): the
                          OpenAPI document, the docs.x.com pages in their Markdown form and
                          the X Developer Agreement and Policy
+  record_fixture.py      records one exchange of the four wrappers, X Content rewritten (D1);
+                         Recording fixtures below
 tests/
   conftest.py      enables xippios.core.testing.plugin, which keeps the run offline
   fixtures/        recorded responses, <wrapper>/<case>.json, the directory named after the
@@ -51,7 +57,9 @@ tests/
   test_family.py   core's family check, one line: namespace levels, py.typed, __version__,
                    the adapters serving exactly the tasks, task shapes and docstrings, the
                    README status table, the template tag, the core bound
-  test_api.py      optional: the endpoint wrappers' own tests
+  test_api.py      the endpoint wrappers' replay tests, one per recorded case
+  test_client.py   classify against the recorded refusals and built 429, usage cap and 404
+  test_record_fixture.py  the recorder's rewrite, verify, account guards and estimate
   test_tasks.py    per-task replay tests
   test_live.py     @pytest.mark.live smoke tests, one per task
 docs/upstream/     documentation snapshot and FETCHED.md
@@ -138,6 +146,59 @@ By I.10 the documentation is X API, and so Licensed Material, too. The snapshot 
 reproduced for reference with its attribution and URLs in `FETCHED.md`; should X object,
 a PR replaces it with a summary that keeps the names and semantics the wrappers rely on.
 
+### Recording fixtures
+
+`scripts/record_fixture.py` is `/record-fixture` here, run with the key through direnv:
+`direnv exec ~/github/sdk uv run scripts/record_fixture.py <wrapper> <case> key=value ...`,
+`key=value` the query parameters under the names the wire takes (`user.fields`,
+`post.fields`, `expansions`), `id=` filling the path of `get_users_posts`. It records
+through the package's client with `RetryPolicy(max_attempts=1)`, so a 5xx spends no second
+request, and writes `tests/fixtures/<wrapper>/<case>.json` once, never over an existing
+file. How it holds to D1 above, in full in its docstring:
+
+- **The accounts.** It records the four wrappers only. Its guard covers what a request
+  names, its usernames, ids and query, and refuses before the request one that names an
+  account other than the three: `usernames` among them, `id` one of their ids, `ids` posts
+  of theirs, as the recorded fixtures give them, a counts `query` naming one of them with
+  `from:` and no other account. `--unknown` admits one other username or id, for an error
+  case, and the answer is not written if it finds an account or posts.
+- **The expansions and fields.** An expansion can still bring other accounts' objects into
+  an answer: `referenced_posts` brings the posts a post reposts, quotes or replies to,
+  whoever wrote them (`get_posts_by_ids/most_recent_three` holds post
+  2114868620933333409, which @XDevelopers quoted and which is none of the three's recorded
+  posts; kept as recorded, the session, 2026-10-29, within D1 and the Developer Policy's
+  permission of Post IDs). The rewrite covers their `text`, `description`, `name`,
+  `username` and `location`. So the recorder refuses before the request every
+  `expansions`, `user.fields` and `post.fields` value outside its `ADMITTED`: the
+  expansions `most_recent_post_id` and `referenced_posts`, which bring no users, the plan's
+  user fields with `id`, `name`, `username` and `verified`, the plan's post fields with
+  `id` and `text`. The values refused carry what the rewrite does not cover for other
+  accounts (`url`, `profile_image_url`, `entities`, whose URL entities' `title`,
+  `expanded_url` and `display_url` can carry a handle, `withheld`, the pinned post ids)
+  and stay refused until the rewrite covers them.
+- **The rewrite**, by key at any depth: D1's `text`, `description` and `name` of persons,
+  and, the session's extension of 2026-10-29, `username` and `location`. Every `text`
+  (posts, `note_tweet`, `note_post`) becomes `[text rewritten]`, every `description`
+  `[description rewritten]`, and in every object with a `username` that is not one of the
+  three (a person, a mention) `username`, `name` and `location` become `[username
+  rewritten]`, `[name rewritten]` and `[location rewritten]`. Ids, times, metrics, `lang`, booleans, enum values and the three accounts'
+  names, handles, locations and URLs stay as sent, and so does an answer with nothing to
+  rewrite (counts, errors), byte for byte. It then verifies against the unrewritten body
+  in memory that no rewritten value survives anywhere in the fixture, refusing the write
+  by the key's path; the unrewritten body is never written.
+- **The spend.** It prints its estimate before the request, an upper bound at the prices
+  of `pages/pricing.md` (Spend above); `--wrong-key` sends `Bearer not-a-valid-key` for
+  the 401, which bills nothing. A recording session counts its calls against the budget
+  line of its briefing.
+
+Every fixture carries X's `x-transaction-id` response header, a request id of 16 hex
+digits that detect-secrets flags; each has an audited `.secrets.baseline` entry (`is_secret:
+false`; row 124). Core's scrub writes `next_token=REDACTED` and `pagination_token=REDACTED`
+in a recorded URL, since its credential rule takes `token` as a whole word, and
+`sent_query` reads them the same way, so a test cannot match on them; the tokens in `meta`
+stay as sent. A task's `meta.request` will redact them too until core lets a source declare
+them data (core gap row 326).
+
 ### Live tests (D3)
 
 `.github/workflows/live.yml` runs keyless until gate P's go; after it, the nightly run
@@ -157,9 +218,48 @@ with `/2` (`docs/upstream/openapi/openapi.json`, line 21380); `BASE_URL` already
 (version 2.173) names the field parameter `post.fields` and the field `referenced_posts`
 where the guides (`pages/fields.md`) write `tweet.fields` and `referenced_tweets`, and has
 `most_recent_post_id` as a users expansion where the plan had `most_recent_tweet_id` as a
-`user.fields` value; the first recording settles which the API takes. Errors come as
-`application/problem+json` (the `Problem` schema; a keyless request on 2026-10-29 was
-answered 401 with `title`, `type`, `status` and `detail`) or as `{"errors": [{"code",
-"message"}]}`, the body the rate-limits page shows for a 429 with `code: 88`
-(`pages/rate-limits.md`, lines 412 to 418). The OpenAPI document lists no 429 response and
-no `x-rate-limit-*` header: its read operations answer 200 or `default`.
+`user.fields` value; the recordings of 2026-10-29 settled which the API takes (Wire names
+below). Errors come as `application/problem+json` (the `Problem` schema; a keyless request
+on 2026-10-29 was answered 401 with `title`, `type`, `status` and `detail`) or as
+`{"errors": [{"code", "message"}]}`, the body the rate-limits page shows for a 429 with
+`code: 88` (`pages/rate-limits.md`, lines 412 to 418). The OpenAPI document lists no 429
+response and no `x-rate-limit-*` header: its read operations answer 200 or `default`.
+
+Wire names, settled by the recordings of 2026-10-29: X takes the document's names
+(`post.fields`, `expansions=most_recent_post_id`, `expansions=referenced_posts`, each
+answered HTTP 200), so the wrappers send them. It answers in the document's names when the
+request carries `post.fields` (`most_recent_post_id`, `post_count` among a user's metrics,
+`includes.posts`, `edit_history_post_ids`, `repost_count`, `referenced_posts`) and in the
+guides' when it does not (`most_recent_tweet_id`, `tweet_count`, `includes.tweets`,
+`edit_history_tweet_ids`; `get_users_by_usernames/three_accounts` against
+`xdevelopers_post_fields`); the post counts, which take no `post.fields`, answer
+`tweet_count` and `total_tweet_count` (`pages/post-counts.md`) where the document has
+`post_count` and `total_post_count`. The models carry the document's names and accept the
+guides' spelling through `validation_alias` (`models.py`), so a page reads the same either
+way and `dump_upstream` writes the document's names.
+
+The recorded refusals add to the shapes above: the wrong key's 401 has `type:
+about:blank` and `status`, and a 400 carries both shapes, the problem and an `errors` list
+of `message` and `parameters`. `classify` maps them (conventions §5), the problem type read
+by the last segment of its URI, which the document writes on `api.x.com` and, for its rule
+problems, on `api.twitter.com`:
+
+- a `usage-capped` problem at any 4xx: `RateLimitError`, `retry_after` `BILLING_CYCLE`, 31
+  days, the upper bound of a monthly billing cycle, since X blocks requests "until the next
+  billing cycle" and its answer does not say when that is (the documented fallback of
+  ADR-0010 decision 3); `GET /2/usage/tweets` returns the exact day, `cap_reset_day` (29
+  when read on 2026-10-29);
+- a 429 or a `rate-limit-exceeded` problem: `RateLimitError`, `retry_after` the seconds
+  until `x-rate-limit-reset` (never negative), else `RATE_LIMIT_WINDOW`, 900 s; core's
+  retries wait it out up to `backoff_max`, beyond that the error reaches the caller;
+- a 400 or an `invalid-request` problem: `InvalidRequestError` with upstream's words;
+- a 404 or a `resource-not-found` problem: `NotFoundError`;
+- the rest to core: a 401 or 403 `AuthError`, a 5xx `UpstreamError`, retried.
+
+A 200 is never an error: X answers a username or a post id it does not find with a
+`Problem` in `errors` beside the `data` found ("Partial errors",
+`pages/response-codes-and-errors.md`), and a user id it does not find with HTTP 200, a
+`resource-not-found` problem and no `data` (`get_users_posts/unknown_id`). The wrappers
+return these as the page, faithful to the answer (ADR-0003); whether a task raises
+`NotFoundError` when `data` is absent and `errors` names the resource is the task layer's
+decision (PR 6).

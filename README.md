@@ -27,7 +27,10 @@ from xippios.x import tasks
 # result.data, result.meta.retrieved_at, result.meta.request
 ```
 
-Task functions are listed in the status table below as they are added.
+Task functions are listed in the status table below as they are added. Underneath them,
+`xippios.x.api` wraps four X API v2 operations one page at a time (users by username,
+posts by id, a user's posts, post counts over the archive), the layer the tasks will
+compose.
 
 ## MCP
 

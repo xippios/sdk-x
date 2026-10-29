@@ -1,0 +1,113 @@
+{
+  "recorded_at": "2026-10-29T15:43:00.628309Z",
+  "request": {
+    "body": null,
+    "body_base64": false,
+    "content_type": null,
+    "method": "GET",
+    "url": "https://api.x.com/2/users/by?usernames=XDevelopers%2CUSDA%2CFAO&user.fields=created_at%2Cdescription%2Clocation%2Cprotected%2Cpublic_metrics%2Cverified_type%2Curl&expansions=most_recent_post_id"
+  },
+  "response": {
+    "body": "{\"data\":[{\"created_at\":\"2013-12-14T04:35:55.000Z\",\"description\":\"[description rewritten]\",\"id\":\"2244994945\",\"location\":\"127.0.0.1\",\"most_recent_tweet_id\":\"2114879022433800258\",\"name\":\"Developers\",\"protected\":false,\"public_metrics\":{\"followers_count\":697765,\"following_count\":770,\"like_count\":2764,\"listed_count\":2983,\"media_count\":832,\"tweet_count\":4381},\"url\":\"https://t.co/NIwHVIVyrN\",\"username\":\"XDevelopers\",\"verified_type\":\"business\"},{\"created_at\":\"2009-07-31T19:29:19.000Z\",\"description\":\"[description rewritten]\",\"id\":\"61853389\",\"location\":\"Washington, DC\",\"most_recent_tweet_id\":\"2115806101480337475\",\"name\":\"Dept. of Agriculture\",\"protected\":false,\"public_metrics\":{\"followers_count\":1114940,\"following_count\":2490,\"like_count\":5952,\"listed_count\":7551,\"media_count\":7675,\"tweet_count\":25727},\"url\":\"https://t.co/izYIec9V6H\",\"username\":\"USDA\",\"verified_type\":\"government\"},{\"created_at\":\"2009-01-28T12:33:35.000Z\",\"description\":\"[description rewritten]\",\"id\":\"19649135\",\"location\":\"Rome, Italy\",\"most_recent_tweet_id\":\"2115789000682180921\",\"name\":\"Food and Agriculture Organization\",\"protected\":false,\"public_metrics\":{\"followers_count\":756206,\"following_count\":505,\"like_count\":10509,\"listed_count\":5876,\"media_count\":15515,\"tweet_count\":46908},\"url\":\"https://t.co/ORqk7OmBxf\",\"username\":\"FAO\",\"verified_type\":\"government\"}],\"includes\":{\"tweets\":[{\"edit_history_tweet_ids\":[\"2114879022433800258\"],\"id\":\"2114879022433800258\",\"text\":\"[text rewritten]\"},{\"edit_history_tweet_ids\":[\"2115805884466995409\",\"2115806101480337475\"],\"id\":\"2115806101480337475\",\"text\":\"[text rewritten]\"},{\"edit_history_tweet_ids\":[\"2115789000682180921\"],\"id\":\"2115789000682180921\",\"text\":\"[text rewritten]\"}]}}",
+    "body_base64": false,
+    "headers": [
+      [
+        "date",
+        "Thu, 29 Oct 2026 15:42:59 GMT"
+      ],
+      [
+        "content-type",
+        "application/json; charset=utf-8"
+      ],
+      [
+        "perf",
+        "7402827104"
+      ],
+      [
+        "server",
+        "cloudflare envoy"
+      ],
+      [
+        "api-version",
+        "2.173"
+      ],
+      [
+        "cache-control",
+        "no-cache, no-store, max-age=0"
+      ],
+      [
+        "x-access-level",
+        "read"
+      ],
+      [
+        "x-frame-options",
+        "SAMEORIGIN"
+      ],
+      [
+        "x-transaction-id",
+        "c340c9f7728eb3e4"
+      ],
+      [
+        "x-xss-protection",
+        "0"
+      ],
+      [
+        "x-rate-limit-limit",
+        "2000"
+      ],
+      [
+        "x-rate-limit-reset",
+        "1793289479"
+      ],
+      [
+        "content-disposition",
+        "attachment; filename=json.json"
+      ],
+      [
+        "x-content-type-options",
+        "nosniff"
+      ],
+      [
+        "x-rate-limit-remaining",
+        "1999"
+      ],
+      [
+        "set-cookie",
+        "REDACTED"
+      ],
+      [
+        "set-cookie",
+        "REDACTED"
+      ],
+      [
+        "x-response-time",
+        "101"
+      ],
+      [
+        "origin-cf-ray",
+        "a5234b150929e46e-ATL"
+      ],
+      [
+        "strict-transport-security",
+        "max-age=631138519; includeSubdomains"
+      ],
+      [
+        "x-served-by",
+        "t4_a"
+      ],
+      [
+        "vary",
+        "accept-encoding"
+      ],
+      [
+        "cf-cache-status",
+        "DYNAMIC"
+      ],
+      [
+        "cf-ray",
+        "a5234b150929e46e-ZRH"
+      ]
+    ],
+    "status": 200
+  }
+}

@@ -1,0 +1,105 @@
+{
+  "recorded_at": "2026-10-29T15:43:18.707947Z",
+  "request": {
+    "body": null,
+    "body_base64": false,
+    "content_type": null,
+    "method": "GET",
+    "url": "https://api.x.com/2/users/by?usernames=XDevelopers%2Cxippiosnosuchuser0001&user.fields=created_at%2Cdescription%2Clocation%2Cprotected%2Cpublic_metrics%2Cverified_type%2Curl"
+  },
+  "response": {
+    "body": "{\"detail\":\"One or more parameters to your request was invalid.\",\"errors\":[{\"message\":\"The `usernames` query parameter value [xippiosnosuchuser0001] does not match ^[A-Za-z0-9_]{1,15}$\",\"parameters\":{\"usernames\":[\"xippiosnosuchuser0001\"]}}],\"title\":\"Invalid Request\",\"type\":\"https://api.x.com/2/problems/invalid-request\"}",
+    "body_base64": false,
+    "headers": [
+      [
+        "date",
+        "Thu, 29 Oct 2026 15:43:16 GMT"
+      ],
+      [
+        "content-type",
+        "application/problem+json"
+      ],
+      [
+        "perf",
+        "7402827104"
+      ],
+      [
+        "server",
+        "cloudflare envoy"
+      ],
+      [
+        "set-cookie",
+        "REDACTED"
+      ],
+      [
+        "set-cookie",
+        "REDACTED"
+      ],
+      [
+        "cache-control",
+        "no-cache, no-store, max-age=0"
+      ],
+      [
+        "x-access-level",
+        "read"
+      ],
+      [
+        "x-frame-options",
+        "SAMEORIGIN"
+      ],
+      [
+        "x-transaction-id",
+        "94f9cb79cc5d695e"
+      ],
+      [
+        "x-xss-protection",
+        "0"
+      ],
+      [
+        "x-rate-limit-limit",
+        "2000"
+      ],
+      [
+        "x-rate-limit-reset",
+        "1793289479"
+      ],
+      [
+        "content-disposition",
+        "attachment; filename=json.json"
+      ],
+      [
+        "x-content-type-options",
+        "nosniff"
+      ],
+      [
+        "x-rate-limit-remaining",
+        "1998"
+      ],
+      [
+        "x-response-time",
+        "16"
+      ],
+      [
+        "origin-cf-ray",
+        "a5234b7c2de1bab6-ZRH"
+      ],
+      [
+        "strict-transport-security",
+        "max-age=631138519; includeSubdomains"
+      ],
+      [
+        "x-served-by",
+        "t4_a"
+      ],
+      [
+        "cf-cache-status",
+        "DYNAMIC"
+      ],
+      [
+        "cf-ray",
+        "a5234b7c2de1bab6-ZRH"
+      ]
+    ],
+    "status": 400
+  }
+}

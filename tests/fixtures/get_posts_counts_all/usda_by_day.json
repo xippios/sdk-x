@@ -1,0 +1,113 @@
+{
+  "recorded_at": "2026-10-29T15:44:24.408921Z",
+  "request": {
+    "body": null,
+    "body_base64": false,
+    "content_type": null,
+    "method": "GET",
+    "url": "https://api.x.com/2/tweets/counts/all?query=from%3AUSDA&granularity=day&start_time=2026-07-31T00%3A00%3A00Z"
+  },
+  "response": {
+    "body": "{\"data\":[{\"end\":\"2026-09-30T00:00:00.000Z\",\"start\":\"2026-09-29T00:00:00.000Z\",\"tweet_count\":16},{\"end\":\"2026-10-01T00:00:00.000Z\",\"start\":\"2026-09-30T00:00:00.000Z\",\"tweet_count\":8},{\"end\":\"2026-10-02T00:00:00.000Z\",\"start\":\"2026-10-01T00:00:00.000Z\",\"tweet_count\":7},{\"end\":\"2026-10-03T00:00:00.000Z\",\"start\":\"2026-10-02T00:00:00.000Z\",\"tweet_count\":16},{\"end\":\"2026-10-04T00:00:00.000Z\",\"start\":\"2026-10-03T00:00:00.000Z\",\"tweet_count\":0},{\"end\":\"2026-10-05T00:00:00.000Z\",\"start\":\"2026-10-04T00:00:00.000Z\",\"tweet_count\":0},{\"end\":\"2026-10-06T00:00:00.000Z\",\"start\":\"2026-10-05T00:00:00.000Z\",\"tweet_count\":5},{\"end\":\"2026-10-07T00:00:00.000Z\",\"start\":\"2026-10-06T00:00:00.000Z\",\"tweet_count\":12},{\"end\":\"2026-10-08T00:00:00.000Z\",\"start\":\"2026-10-07T00:00:00.000Z\",\"tweet_count\":8},{\"end\":\"2026-10-09T00:00:00.000Z\",\"start\":\"2026-10-08T00:00:00.000Z\",\"tweet_count\":10},{\"end\":\"2026-10-10T00:00:00.000Z\",\"start\":\"2026-10-09T00:00:00.000Z\",\"tweet_count\":9},{\"end\":\"2026-10-11T00:00:00.000Z\",\"start\":\"2026-10-10T00:00:00.000Z\",\"tweet_count\":1},{\"end\":\"2026-10-12T00:00:00.000Z\",\"start\":\"2026-10-11T00:00:00.000Z\",\"tweet_count\":2},{\"end\":\"2026-10-13T00:00:00.000Z\",\"start\":\"2026-10-12T00:00:00.000Z\",\"tweet_count\":5},{\"end\":\"2026-10-14T00:00:00.000Z\",\"start\":\"2026-10-13T00:00:00.000Z\",\"tweet_count\":8},{\"end\":\"2026-10-15T00:00:00.000Z\",\"start\":\"2026-10-14T00:00:00.000Z\",\"tweet_count\":10},{\"end\":\"2026-10-16T00:00:00.000Z\",\"start\":\"2026-10-15T00:00:00.000Z\",\"tweet_count\":6},{\"end\":\"2026-10-17T00:00:00.000Z\",\"start\":\"2026-10-16T00:00:00.000Z\",\"tweet_count\":5},{\"end\":\"2026-10-18T00:00:00.000Z\",\"start\":\"2026-10-17T00:00:00.000Z\",\"tweet_count\":3},{\"end\":\"2026-10-19T00:00:00.000Z\",\"start\":\"2026-10-18T00:00:00.000Z\",\"tweet_count\":1},{\"end\":\"2026-10-20T00:00:00.000Z\",\"start\":\"2026-10-19T00:00:00.000Z\",\"tweet_count\":4},{\"end\":\"2026-10-21T00:00:00.000Z\",\"start\":\"2026-10-20T00:00:00.000Z\",\"tweet_count\":17},{\"end\":\"2026-10-22T00:00:00.000Z\",\"start\":\"2026-10-21T00:00:00.000Z\",\"tweet_count\":8},{\"end\":\"2026-10-23T00:00:00.000Z\",\"start\":\"2026-10-22T00:00:00.000Z\",\"tweet_count\":5},{\"end\":\"2026-10-24T00:00:00.000Z\",\"start\":\"2026-10-23T00:00:00.000Z\",\"tweet_count\":17},{\"end\":\"2026-10-25T00:00:00.000Z\",\"start\":\"2026-10-24T00:00:00.000Z\",\"tweet_count\":4},{\"end\":\"2026-10-26T00:00:00.000Z\",\"start\":\"2026-10-25T00:00:00.000Z\",\"tweet_count\":2},{\"end\":\"2026-10-27T00:00:00.000Z\",\"start\":\"2026-10-26T00:00:00.000Z\",\"tweet_count\":7},{\"end\":\"2026-10-28T00:00:00.000Z\",\"start\":\"2026-10-27T00:00:00.000Z\",\"tweet_count\":9},{\"end\":\"2026-10-29T00:00:00.000Z\",\"start\":\"2026-10-28T00:00:00.000Z\",\"tweet_count\":9},{\"end\":\"2026-10-29T15:44:13.000Z\",\"start\":\"2026-10-29T00:00:00.000Z\",\"tweet_count\":4}],\"meta\":{\"next_token\":\"1jzu9lk96azp0b3x7888hrpw9huhi71ue3rvqfrhj98d\",\"total_tweet_count\":218}}",
+    "body_base64": false,
+    "headers": [
+      [
+        "date",
+        "Thu, 29 Oct 2026 15:44:23 GMT"
+      ],
+      [
+        "content-type",
+        "application/json; charset=utf-8"
+      ],
+      [
+        "perf",
+        "7402827104"
+      ],
+      [
+        "server",
+        "cloudflare envoy"
+      ],
+      [
+        "api-version",
+        "2.173"
+      ],
+      [
+        "cache-control",
+        "no-cache, no-store, max-age=0"
+      ],
+      [
+        "x-access-level",
+        "read"
+      ],
+      [
+        "x-frame-options",
+        "SAMEORIGIN"
+      ],
+      [
+        "x-transaction-id",
+        "d042ddc2bb958f79"
+      ],
+      [
+        "x-xss-protection",
+        "0"
+      ],
+      [
+        "x-rate-limit-limit",
+        "300"
+      ],
+      [
+        "x-rate-limit-reset",
+        "1793289563"
+      ],
+      [
+        "content-disposition",
+        "attachment; filename=json.json"
+      ],
+      [
+        "x-content-type-options",
+        "nosniff"
+      ],
+      [
+        "x-rate-limit-remaining",
+        "299"
+      ],
+      [
+        "set-cookie",
+        "REDACTED"
+      ],
+      [
+        "set-cookie",
+        "REDACTED"
+      ],
+      [
+        "x-response-time",
+        "176"
+      ],
+      [
+        "origin-cf-ray",
+        "a5234d229bcd039b-ATL"
+      ],
+      [
+        "strict-transport-security",
+        "max-age=631138519; includeSubdomains"
+      ],
+      [
+        "x-served-by",
+        "t4_a"
+      ],
+      [
+        "vary",
+        "accept-encoding"
+      ],
+      [
+        "cf-cache-status",
+        "DYNAMIC"
+      ],
+      [
+        "cf-ray",
+        "a5234d229bcd039b-ZRH"
+      ]
+    ],
+    "status": 200
+  }
+}

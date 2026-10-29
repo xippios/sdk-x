@@ -1,0 +1,113 @@
+{
+  "recorded_at": "2026-10-29T15:44:52.855686Z",
+  "request": {
+    "body": null,
+    "body_base64": false,
+    "content_type": null,
+    "method": "GET",
+    "url": "https://api.x.com/2/users/9000000000000000000/tweets?max_results=10&post.fields=created_at%2Clang%2Cpublic_metrics%2Cconversation_id"
+  },
+  "response": {
+    "body": "{\"errors\":[{\"detail\":\"Could not find user with id: [9000000000000000000].\",\"parameter\":\"id\",\"resource_id\":\"9000000000000000000\",\"resource_type\":\"user\",\"title\":\"Not Found Error\",\"type\":\"https://api.x.com/2/problems/resource-not-found\",\"value\":\"9000000000000000000\"}]}",
+    "body_base64": false,
+    "headers": [
+      [
+        "date",
+        "Thu, 29 Oct 2026 15:44:52 GMT"
+      ],
+      [
+        "content-type",
+        "application/json; charset=utf-8"
+      ],
+      [
+        "perf",
+        "7402827104"
+      ],
+      [
+        "server",
+        "cloudflare envoy"
+      ],
+      [
+        "set-cookie",
+        "REDACTED"
+      ],
+      [
+        "set-cookie",
+        "REDACTED"
+      ],
+      [
+        "api-version",
+        "2.173"
+      ],
+      [
+        "cache-control",
+        "no-cache, no-store, max-age=0"
+      ],
+      [
+        "x-access-level",
+        "read"
+      ],
+      [
+        "x-frame-options",
+        "SAMEORIGIN"
+      ],
+      [
+        "x-transaction-id",
+        "98d0213dbf35b21a"
+      ],
+      [
+        "x-xss-protection",
+        "0"
+      ],
+      [
+        "x-rate-limit-limit",
+        "10000"
+      ],
+      [
+        "x-rate-limit-reset",
+        "1793289543"
+      ],
+      [
+        "content-disposition",
+        "attachment; filename=json.json"
+      ],
+      [
+        "x-content-type-options",
+        "nosniff"
+      ],
+      [
+        "x-rate-limit-remaining",
+        "9996"
+      ],
+      [
+        "x-response-time",
+        "33"
+      ],
+      [
+        "origin-cf-ray",
+        "a5234dd5aa1dbc6b-ZRH"
+      ],
+      [
+        "strict-transport-security",
+        "max-age=631138519; includeSubdomains"
+      ],
+      [
+        "x-served-by",
+        "t4_a"
+      ],
+      [
+        "cf-cache-status",
+        "DYNAMIC"
+      ],
+      [
+        "vary",
+        "accept-encoding"
+      ],
+      [
+        "cf-ray",
+        "a5234dd5aa1dbc6b-ZRH"
+      ]
+    ],
+    "status": 200
+  }
+}

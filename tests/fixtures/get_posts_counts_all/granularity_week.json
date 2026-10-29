@@ -1,0 +1,105 @@
+{
+  "recorded_at": "2026-10-29T15:44:53.880886Z",
+  "request": {
+    "body": null,
+    "body_base64": false,
+    "content_type": null,
+    "method": "GET",
+    "url": "https://api.x.com/2/tweets/counts/all?query=from%3AUSDA&granularity=week&start_time=2026-07-31T00%3A00%3A00Z"
+  },
+  "response": {
+    "body": "{\"detail\":\"One or more parameters to your request was invalid.\",\"errors\":[{\"message\":\"The `granularity` query parameter value [week] is not one of [minute,hour,day]\",\"parameters\":{\"granularity\":[\"week\"]}}],\"title\":\"Invalid Request\",\"type\":\"https://api.x.com/2/problems/invalid-request\"}",
+    "body_base64": false,
+    "headers": [
+      [
+        "date",
+        "Thu, 29 Oct 2026 15:44:53 GMT"
+      ],
+      [
+        "content-type",
+        "application/problem+json"
+      ],
+      [
+        "perf",
+        "7402827104"
+      ],
+      [
+        "server",
+        "cloudflare envoy"
+      ],
+      [
+        "cache-control",
+        "no-cache, no-store, max-age=0"
+      ],
+      [
+        "set-cookie",
+        "REDACTED"
+      ],
+      [
+        "set-cookie",
+        "REDACTED"
+      ],
+      [
+        "x-access-level",
+        "read"
+      ],
+      [
+        "x-frame-options",
+        "SAMEORIGIN"
+      ],
+      [
+        "x-transaction-id",
+        "08b6af3ebd6473fd"
+      ],
+      [
+        "x-xss-protection",
+        "0"
+      ],
+      [
+        "x-rate-limit-limit",
+        "300"
+      ],
+      [
+        "x-rate-limit-reset",
+        "1793289563"
+      ],
+      [
+        "content-disposition",
+        "attachment; filename=json.json"
+      ],
+      [
+        "x-content-type-options",
+        "nosniff"
+      ],
+      [
+        "x-rate-limit-remaining",
+        "296"
+      ],
+      [
+        "x-response-time",
+        "15"
+      ],
+      [
+        "origin-cf-ray",
+        "a5234ddbac367a85-ATL"
+      ],
+      [
+        "strict-transport-security",
+        "max-age=631138519; includeSubdomains"
+      ],
+      [
+        "x-served-by",
+        "t4_a"
+      ],
+      [
+        "cf-cache-status",
+        "DYNAMIC"
+      ],
+      [
+        "cf-ray",
+        "a5234ddbac367a85-ZRH"
+      ]
+    ],
+    "status": 400
+  }
+}
