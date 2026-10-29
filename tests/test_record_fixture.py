@@ -195,6 +195,28 @@ def test_the_three_accounts_ids_come_from_the_recorded_answers(recorder: ModuleT
         ("get_posts_counts_all", {"query": "from:USDA OR from:someone"}, False, "with from:"),
         ("get_posts_counts_all", {"query": "from:FAO @someone"}, False, "with from:"),
         ("get_posts_counts_all", {"query": "to:FAO"}, False, "with from:"),
+        ("get_posts_by_ids", {"ids": "1", "expansions": "author_id"}, False, "author_id is"),
+        (
+            "get_users_by_usernames",
+            {"usernames": "USDA", "expansions": "pinned_post_id"},
+            False,
+            "pinned_post_id is refused",
+        ),
+        (
+            "get_users_by_usernames",
+            {"usernames": "USDA", "user.fields": "url,entities"},
+            False,
+            "entities is",
+        ),
+        (
+            "get_users_posts",
+            {"id": "61853389", "user.fields": "profile_image_url"},
+            False,
+            "refused",
+        ),
+        ("get_users_posts", {"id": "61853389", "post.fields": "lang,entities"}, False, "entities"),
+        ("get_posts_by_ids", {"ids": "1", "post.fields": "note_post"}, False, "note_post is"),
+        ("get_posts_by_ids", {"ids": "1", "post.fields": "withheld"}, False, "withheld is"),
     ],
 )
 def test_requests_beyond_the_three_accounts_are_refused(
@@ -220,6 +242,17 @@ def test_requests_for_the_three_accounts_pass(
     recorder: ModuleType, wrapper: str, params: dict[str, str], unknown: bool
 ) -> None:
     assert recorder.refusal(wrapper, params, unknown=unknown) is None
+
+
+def test_every_recorded_request_passes_the_guard(recorder: ModuleType) -> None:
+    """The query of each recorded fixture, read back, is one the recorder admits today."""
+    for path in sorted(FIXTURES.glob("*/*.json")):
+        url = httpx.URL(load_fixture(path).request.url)
+        params = dict(url.params)
+        if path.parent.name == "get_users_posts":
+            params["id"] = url.path.split("/")[3]
+        unknown = path.stem in ("partial_errors", "unknown_id", "username_too_long")
+        assert recorder.refusal(path.parent.name, params, unknown=unknown) is None, path.stem
 
 
 @pytest.mark.parametrize(
