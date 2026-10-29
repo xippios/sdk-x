@@ -14,7 +14,7 @@ the family rules every source shares are in `.claude/family.md`, which the next 
 | API base URL | `https://api.x.com/2` |
 | Documentation | https://docs.x.com/x-api/introduction, snapshotted in `docs/upstream/`; an OpenAPI or Swagger document a page names is kept beside it, its URL in `SPEC_URL` of `scripts/refresh_upstream.py` (`/refresh-upstream`) |
 | Credentials | `X_API_KEY` from the environment, sent as `Authorization: Bearer`: the app's Bearer Token, which X calls the App only Access Token (`docs/upstream/pages/application-only.md`), not the console's "API Key", the OAuth 1.0a consumer key |
-| Rate limit | 60 requests per minute, burst 1; a self-imposed pace (ADR-0010 decision 1), enforced client-side in `_client.py`. X documents no per-minute limit but per-endpoint windows of 15 minutes, per app with a Bearer Token (`docs/upstream/pages/rate-limits.md`): 300 on `GET /2/users/by` and on both counts endpoints, 3,500 on `GET /2/tweets`, 10,000 on `GET /2/users/:id/tweets`, 450 on `GET /2/tweets/search/recent`, 900 on `GET /2/lists/:id/tweets` and on `GET /2/lists/:id/members`, 50 on `GET /2/usage/tweets`; a 1/sec limit only on `GET /2/tweets/search/all` and `GET /2/spaces/by/creator_ids`, which this package does not wrap. The windows are never rationed ahead by the limiter; a spent one is answered at its 429, in `_client.py`'s `classify` alone: a `RateLimitError` whose `retry_after` comes from `x-rate-limit-reset`, a Unix timestamp, with the 15-minute window as the fallback. No `QuotaPolicy`: one policy per client cannot track windows per endpoint (core gap row 318). ADR-0010 decisions 2 and 3; coordination row 304. Observed on 2026-10-29: `x-rate-limit-limit: 2000` on `GET /2/users/by` against the page's 300, and 3,500, 10,000, 300, 450, 300, 900 and 900 on the other seven wrapped operations as the page lists; the headers are the authority, the page's table the documented floor. `classify`'s whole mapping: Paths, names and errors below |
+| Rate limit | 60 requests per minute, burst 1; a self-imposed pace (ADR-0010 decision 1), enforced client-side in `_client.py`. X documents no per-minute limit but per-endpoint windows of 15 minutes, per app with a Bearer Token (`docs/upstream/pages/rate-limits.md`): 300 on `GET /2/users/by` and on both counts endpoints, 3,500 on `GET /2/tweets`, 10,000 on `GET /2/users/:id/tweets`, 450 on `GET /2/tweets/search/recent`, 900 on `GET /2/lists/:id/tweets` and on `GET /2/lists/:id/members`, 50 on `GET /2/usage/tweets`; a 1/sec limit only on `GET /2/tweets/search/all` and `GET /2/spaces/by/creator_ids`, which this package does not wrap. The windows are never rationed ahead by the limiter; a spent one is answered at its 429, in `_client.py`'s `classify` alone: a `RateLimitError` whose `retry_after` comes from `x-rate-limit-reset`, a Unix timestamp, with the 15-minute window as the fallback. No `QuotaPolicy`: one policy per client cannot track windows per endpoint (core gap row 318). ADR-0010 decisions 2 and 3; coordination row 304. Observed on 2026-10-29: `x-rate-limit-limit: 2000` on `GET /2/users/by` against the page's 300, and 3,500, 10,000, 300, 450, 300, 900, 900 and 50 on the other eight wrapped operations as the page lists; the headers are the authority, the page's table the documented floor. `classify`'s whole mapping: Paths, names and errors below |
 | Write tools | no, this package is read-only |
 
 The snapshot listed in `docs/upstream/FETCHED.md` is the reference for names, parameters and semantics.
@@ -30,15 +30,17 @@ src/xippios/x/
                    upstream's documented error shapes
   errors.py        the package's own error classes, where conventions §5 calls for one
   models.py        pydantic models mirroring upstream payloads (UpstreamModel): the OpenAPI
-                   document's User, Post, Expansions, Problem, the eight responses, and its
-                   enums (UserField, PostField, UserExpansion, PostExpansion, Granularity,
-                   SortOrder)
+                   document's User, Post, Expansions, Problem, Usage, the nine responses, and
+                   its enums (UserField, PostField, UserExpansion, PostExpansion, UsageField,
+                   Granularity, SortOrder)
   api/             endpoint wrappers, one module per upstream operation: get_users_by_usernames,
                    get_posts_by_ids, get_users_posts, get_posts_counts_all, search_posts_recent,
-                   get_posts_counts_recent, get_lists_posts, get_lists_members; _query.py turns
-                   parameters into the text X takes and refuses values outside the bounds
-  tasks.py         task functions; __all__ is what the adapters register, but BULK_TASKS,
-                   the Python-only ones; MCP_CAPS any per-tool result caps
+                   get_posts_counts_recent, get_lists_posts, get_lists_members, get_usage;
+                   _query.py turns parameters into the text X takes and refuses values outside
+                   the bounds
+  tasks.py         the seven task functions (The task layer below); __all__ is what the
+                   adapters register, but BULK_TASKS (none), the Python-only ones; MCP_CAPS the
+                   per-tool result caps, notes only
   mcp.py           xippios-x-mcp entry point
   http.py          FastAPI router
   params.py        the packaged reference lists, read from reference/
@@ -50,7 +52,7 @@ scripts/
   refresh_upstream.py    captures docs/upstream/ and writes FETCHED.md (/refresh-upstream): the
                          OpenAPI document, the docs.x.com pages in their Markdown form and
                          the X Developer Agreement and Policy
-  record_fixture.py      records one exchange of the eight wrappers, X Content rewritten (D1);
+  record_fixture.py      records one exchange of the nine wrappers, X Content rewritten (D1);
                          Recording fixtures below
   probe_accounts.py      the account probe and its gate P report (The probe below)
 tests/
@@ -65,8 +67,9 @@ tests/
   test_record_fixture.py  the recorder's rewrite, verify, account guards and estimate
   test_probe_accounts.py  the probe replayed over the recorded fixtures, its estimate, cap,
                    waits, metrics and decision
-  test_tasks.py    per-task replay tests
-  test_live.py     @pytest.mark.live smoke tests, one per task
+  test_tasks.py    per-task replay tests through the sync facades, the MCP server through
+                   core's in-process client, the HTTP router, the live tests' nightly rule
+  test_live.py     @pytest.mark.live smoke tests, one per task (Live tests (D3) below)
 docs/upstream/     documentation snapshot and FETCHED.md
 .github/workflows/ ci.yml (the required ci check, with the CHANGELOG and fixture-size steps),
                    publish.yml (the release train: tag, build, PyPI), live.yml (nightly live
@@ -93,9 +96,9 @@ keeps no placeholder fixture of its own.
 
 `.github/workflows/live.yml` runs the live tests nightly at 01:24 UTC, a time derived from
 the slug so that sources sharing a key never start together.
-Only its `uv run pytest -m live --tb=short` step sees the key, from the org secret `X_API_KEY`.
-Until gate P's go that secret does not exist and the nightly run is keyless (Live tests (D3)
-below).
+Only its `uv run pytest -m live --tb=short` step sees the key, from the org secret `X_API_KEY`,
+which exists since gate P's go on 2026-10-29; the nightly run spends one billable call (Live
+tests (D3) below).
 
 ## X API v2 specifics
 
@@ -168,7 +171,7 @@ through the package's client with `RetryPolicy(max_attempts=1)`, so a 5xx spends
 request, and writes `tests/fixtures/<wrapper>/<case>.json` once, never over an existing
 file. How it holds to D1 above, in full in its docstring:
 
-- **The accounts.** It records the eight wrappers only. Its guard covers what a request
+- **The accounts.** It records the nine wrappers only. Its guard covers what a request
   names, its usernames, ids and query, and refuses before the request one that names an
   account other than the three: `usernames` among them, `id` one of their ids, `ids` posts
   of theirs, as the recorded fixtures give them, a counts `query` (all or recent) naming
@@ -176,10 +179,14 @@ file. How it holds to D1 above, in full in its docstring:
   matches, so the guard of `search_posts_recent` admits `from:<one of the three>` alone or
   followed by `-is:retweet`, `-is:reply` or both, operators in lower case, and nothing
   else (no `OR`, keyword or other operator); it reads parentheses as spaces, since these
-  terms joined by AND only narrow `from:`, and an unbalanced one is X's 400 case. A List
-  `id` is one of `LISTS`, Lists owned by one of the three (The List below). `--unknown`
-  admits one other username, user id or List id, for an error case, and the answer is not
-  written if it finds an account, posts or members.
+  terms joined by AND only narrow `from:`, and an unbalanced one is X's 400 case. It admits
+  one more query, `conversation_id:<id>` alone, the id a post of the three as the recorded
+  fixtures give them (as for `ids`): the conversation a post of theirs started, whose
+  replies are other accounts' posts by nature, recorded as the List's are (The List and
+  the conversation below). A List `id` is one of `LISTS`, Lists owned by one of the three.
+  `--unknown` admits one other username, user id or List id, for an error case, and the
+  answer is not written if it finds an account, posts or members. `get_usage` has no
+  guard: its answer holds the project's usage numbers and ids, no X Content.
 - **The expansions and fields.** An expansion brings other objects into an answer, and a
   field can carry values that describe other accounts. So the recorder refuses before the
   request every `expansions`, `user.fields` and `post.fields` value outside its
@@ -206,11 +213,11 @@ file. How it holds to D1 above, in full in its docstring:
   against the unrewritten body in memory that no rewritten value survives anywhere in the
   fixture, refusing the write by the key's path; the unrewritten body is never written.
 - **The spend.** It prints its estimate before the request, an upper bound at the prices
-  of `pages/pricing.md` (Spend above); `--wrong-key` sends `Bearer not-a-valid-key` for
-  the 401, which bills nothing. A recording session counts its calls against the budget
+  of `pages/pricing.md` (Spend above), and for `get_usage`, which the page gives no price,
+  says so; `--wrong-key` sends `Bearer not-a-valid-key` for the 401, which bills nothing. A recording session counts its calls against the budget
   line of its briefing.
 
-The List. The List fixtures come from one List owned by @XDevelopers, id
+The List and the conversation. The List fixtures come from one List owned by @XDevelopers, id
 `715919216927322112` (`LISTS` in the recorder), whose name suggested institutional
 accounts; of its eight members, four have `verified_type: government` and four
 `verified_type: none` at recording. It was found on 2026-10-29 with one
@@ -221,21 +228,84 @@ other accounts' objects by nature: Johannes decided on 2026-10-29 that
 `get_lists_members/xdevelopers_list_ten` stays as recorded within D1 (an institutional
 List, every free text rewritten, ids, creation dates and public metrics as sent), and the
 session applies the same to `get_lists_posts/xdevelopers_list_ten` (row 330, item 10).
+Johannes read it the same way for a conversation on 2026-10-29: `search_posts_recent/
+usda_conversation` is the recent search `conversation_id:2115806101480337475`, @USDA's most
+recent post at recording, ten posts, nine replies by other accounts and the post itself,
+every `text` rewritten, ids, times and public metrics as sent; no user object, since the
+recorder admits no `author_id` expansion.
 
 Every fixture carries X's `x-transaction-id` response header, a request id of 16 hex
 digits. detect-secrets flags it in every fixture but
-`search_posts_recent/unbalanced_parenthesis`, whose id's entropy is exactly 3.0, the
-detector's limit; each flagged one has an audited `.secrets.baseline` entry (`is_secret:
+`search_posts_recent/unbalanced_parenthesis` and `get_usage/seven_days`, whose ids'
+entropies, exactly 3.0 and 2.98, do not pass the detector's limit; each flagged one has an
+audited `.secrets.baseline` entry (`is_secret:
 false`; row 124). Core's scrub writes `next_token=REDACTED` and `pagination_token=REDACTED`
 in a recorded URL, since its credential rule takes `token` as a whole word, and
 `sent_query` reads them the same way, so a test cannot match on them; the tokens in `meta`
-stay as sent. A task's `meta.request` will redact them too until core lets a source declare
+stay as sent. A task's `meta.request` redacts them too, until core lets a source declare
 them data (core gap row 326).
+
+### The task layer
+
+Seven tasks in `tasks.py`, `__all__` in this order (gate P's go, Johannes, 2026-10-29), each
+one call of one wrapper returning X's page as sent in `Result.data`, the wrapper's
+response model: nothing ranked, stored, projected or collected across pages. The nouns are
+the OpenAPI document's (posts, users, Lists), never "tweet" or "account".
+
+| Task | Wrapper | Spend per call at the snapshot's prices |
+| --- | --- | --- |
+| `lookup_users(usernames, most_recent_post=False)` | `get_users_by_usernames` | 0.010 USD a user found, up to 100 (1.00 USD); 0.005 USD more a user with `most_recent_post` (1.50 USD) |
+| `get_user_posts(id, max_results=10, pagination_token, start_time, end_time)` | `get_users_posts` | 0.005 USD a post, 5 to 100 (0.50 USD) |
+| `search_recent_posts(query, max_results=10, next_token, start_time, end_time)` | `search_posts_recent` | 0.005 USD a post, 10 to 100 (0.50 USD) |
+| `count_posts(query, granularity="day", start_time, end_time, next_token)` | `get_posts_counts_all` | 0.010 USD a request, one page of 31 days |
+| `get_list_posts(id, max_results=10, pagination_token)` | `get_lists_posts` | 0.005 USD a post, 1 to 100 (0.50 USD), counted as posts |
+| `get_conversation_posts(conversation_id, max_results=10, next_token)` | `search_posts_recent` with `conversation_id:<id>` | 0.005 USD a post, 10 to 100 (0.50 USD) |
+| `get_usage(days=7)` | `get_usage` | no price on the page |
+
+The rules they share, stated in the module docstring too:
+
+- **Fields.** Fixed: the probe plan's user fields (`USER_FIELDS`) and post fields
+  (`POST_FIELDS`), the sets the fixtures were recorded with, and every usage field; no
+  expansion but `most_recent_post_id` behind `lookup_users`' `most_recent_post`, which
+  sends the post fields with it.
+- **Counts.** One task on the full archive, `GET /2/tweets/counts/all` (the session's
+  choice of 2026-10-29: one counts task on the general endpoint, explicit names over
+  switches); the recent counts stay a wrapper.
+- **Queries.** `search_recent_posts` refuses a query over 512 characters before the call
+  ("512 query length", `pages/rate-limits.md`), `count_posts` one over 1,024 ("1,024-character
+  query length (4,096 for Enterprise)", `pages/post-counts.md`); the OpenAPI document's
+  4,096 is Enterprise's, and the wrappers keep it. `get_conversation_posts` builds
+  `conversation_id:<id>` and checks the id against the document's post id pattern.
+- **Paging.** The caller's: the token parameter the operation names, given the `next_token`
+  of the previous page's `meta` (`result.data.meta.next_token`).
+- **Absence.** A page without `data` whose every problem is `resource-not-found` (a user id
+  or a List id X does not find, no username of a lookup found) raises `NotFoundError` with
+  X's words; a partial answer is returned as the page, its problems in `errors`; an empty
+  search is an empty page.
+- **`meta`.** `source` the slug `x`, `endpoint` the operation id, `retrieved_at` the time
+  the answer arrived (no cache), `request` the parameters sent under the names X takes, a
+  token's value `REDACTED` (row 326), `total` `None` (X counts only the page's items,
+  `result_count`; ADR-0012), `vintage` `None` (X has no release identifier).
+- **`published_at`.** The newest `created_at` among the posts in `data`, a post's
+  publication time as X states it (Johannes, 2026-10-29); `None` for a page without posts
+  in `data`: users (a user's `created_at` is the account's creation, and a most recent post
+  in `includes` is not the page's data), counts, the usage and an empty search, none of
+  which has a publication time (conventions §4, ADR-0022).
+- **MCP caps.** The family's bounds, 200 rows or 64 KB, for every tool. A result is one
+  page, a model and not a list, so the byte bound cuts it whole, into a note and a
+  preview: measured on the fixtures, a post takes about 1,000 bytes of the tool's text, a
+  user about 1,400 and a count's bucket about 90, so more than about 50 posts, 40 users or
+  700 buckets pass it. `MCP_CAPS` gives the six tools whose page can pass it a note naming
+  their own parameters (ADR-0016 decision 2), and changes no bound.
 
 ### Live tests (D3)
 
-`.github/workflows/live.yml` runs keyless until gate P's go; after it, the nightly run
-spends one billable lookup a night.
+`tests/test_live.py` has one smoke test per task and the rendered `test_upstream_answers`.
+The nightly run of `.github/workflows/live.yml` (`GITHUB_EVENT_NAME` `schedule`) spends one
+billable call, `test_lookup_users`' lookup of @XDevelopers, about 0.010 USD a night (D3,
+Johannes, 2026-10-29); the six others call `not_in_the_nightly_run()` first, which skips
+them there, naming D3, and run on `workflow_dispatch` and locally, about 0.14 USD together
+at most (gap, row 337). They assert shapes and counts, never a payload.
 
 ### The probe
 
@@ -321,9 +391,9 @@ A 200 is never an error: X answers a username or a post id it does not find with
 `pages/response-codes-and-errors.md`), and a user id or a List id it does not find with
 HTTP 200, a `resource-not-found` problem and no `data` (`get_users_posts/unknown_id`,
 `get_lists_posts/unknown_id`). The wrappers
-return these as the page, faithful to the answer (ADR-0003); whether a task raises
-`NotFoundError` when `data` is absent and `errors` names the resource is the task layer's
-decision (PR 6). A query X cannot parse is a 400 with its parser's words
+return these as the page, faithful to the answer (ADR-0003); a task raises
+`NotFoundError` when `data` is absent and every problem is `resource-not-found` (The task
+layer above). A query X cannot parse is a 400 with its parser's words
 (`search_posts_recent/unbalanced_parenthesis`). Recent search, unlike `getUsersPosts`,
 returns an edited post's earlier versions as posts of their own, each with the whole
 `edit_history_post_ids` (`search_posts_recent/usda_ten`); the wrapper returns them as sent.
