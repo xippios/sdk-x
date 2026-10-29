@@ -29,6 +29,7 @@ import importlib.util
 import json
 import math
 import re
+import textwrap
 import time
 from datetime import UTC, datetime, timedelta
 from functools import partial
@@ -599,13 +600,7 @@ def test_the_estimate_for_75_accounts_calls_nothing(
 @pytest.mark.parametrize(
     ("text", "message"),
     [
-        ("handle: USDA", "is not a non-empty YAML list"),
-        ("[]", "is not a non-empty YAML list"),
         ("- [USDA]", "entry 1 is not a record"),
-        (
-            "- {handle: USDA, category: c, region: US, check: seen, notes: x}",
-            "unknown fields notes",
-        ),
         ("- {handle: USDA, region: US, check: seen}", "entry 1: category is missing"),
         ("- {handle: USDA, category: c, region: no, check: seen}", "entry 1: region is not text"),
         ("- {handle: U S, category: c, region: US, check: seen}", "entry 1: handle is not"),
@@ -615,7 +610,6 @@ def test_the_estimate_for_75_accounts_calls_nothing(
             "- {handle: '@usda', category: c, region: US, check: seen}",
             "entry 2: the handle is listed twice",
         ),
-        ("- {handle: USDA\n", "is not YAML (line 2)"),
     ],
 )
 def test_the_account_list_is_checked_before_anything_is_called(
@@ -632,6 +626,175 @@ def test_a_missing_list_is_not_run(
 ) -> None:
     assert probe.main(["--accounts", str(tmp_path / "absent.yaml")], now=NOW) == 1
     assert "not run: cannot read the account list" in capsys.readouterr().out
+
+
+def test_the_list_may_stand_under_the_one_key_accounts(probe: ModuleType, tmp_path: Path) -> None:
+    bare = tmp_path / "bare.yaml"
+    bare.write_text(ACCOUNTS, encoding="utf-8")
+    wrapped = tmp_path / "wrapped.yaml"
+    wrapped.write_text("accounts:\n" + textwrap.indent(ACCOUNTS, "  "), encoding="utf-8")
+    flush = tmp_path / "flush.yaml"
+    flush.write_text("accounts:\n" + ACCOUNTS, encoding="utf-8")
+    accounts = probe.read_accounts(bare)
+    assert [account.handle for account in accounts] == list(HANDLES)
+    assert probe.read_accounts(wrapped) == accounts
+    assert probe.read_accounts(flush) == accounts
+
+
+def test_a_list_that_is_not_yaml_names_the_line_and_no_value(
+    probe: ModuleType, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """PyYAML's own message quotes the bad line; the probe's names its number only."""
+    path = tmp_path / "x-accounts.yaml"
+    path.write_text("- handle: example_one\n  why: made_up: fragment\n", encoding="utf-8")
+    with pytest.raises(probe.AccountsError) as refused:
+        probe.read_accounts(path)
+    message = str(refused.value)
+    assert message == f"the account list {path} is not YAML (line 2)"
+    assert probe.main(["--accounts", str(path)], now=NOW) == 1
+    captured = capsys.readouterr()
+    assert (captured.out, captured.err) == (f"not run: {message}\n", "")
+    for fragment in ("made_up", "fragment", "example_one", "why"):
+        assert fragment not in captured.out.replace(str(path), "")
+
+
+def test_a_list_that_is_not_utf_8_names_no_byte(
+    probe: ModuleType, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A Latin-1 file: Python's decode error names the byte and its offset; the probe's
+    names the path only."""
+    path = tmp_path / "x-accounts.yaml"
+    record = "- {handle: example_one, why: made_up caf\u00e9, check: seen}\n"
+    path.write_bytes(record.encode("latin-1"))
+    with pytest.raises(probe.AccountsError) as refused:
+        probe.read_accounts(path)
+    message = str(refused.value)
+    assert message == f"the account list {path} is not UTF-8 text"
+    assert probe.main(["--accounts", str(path)], now=NOW) == 1
+    captured = capsys.readouterr()
+    assert (captured.out, captured.err) == (f"not run: {message}\n", "")
+    for fragment in ("0xe9", "\\xe9", "\u00e9", "position", "made_up", "example_one"):
+        assert fragment not in captured.out.replace(str(path), "")
+
+
+TAKES = "it takes a non-empty YAML list of records, bare or under the one key accounts"
+
+
+@pytest.mark.parametrize(
+    ("text", "found"),
+    [
+        ("", "nothing"),
+        ("made_up_text", "a scalar"),
+        ("[]", "an empty list"),
+        ("{}", "an empty mapping"),
+        ("handle: made_up_handle", "a mapping with keys other than accounts"),
+        (
+            "accounts:\n- {handle: USDA, category: c, region: US, check: seen}\n"
+            "made_up_key: made_up_value",
+            "a mapping with keys other than accounts",
+        ),
+        ("accounts:", "accounts: with nothing under it"),
+        ("accounts: []", "accounts: with an empty list under it"),
+        ("accounts: {made_up_key: made_up_value}", "accounts: with a mapping under it"),
+        ("accounts: made_up_text", "accounts: with a scalar under it"),
+    ],
+)
+def test_any_other_shape_is_refused_by_its_type(
+    probe: ModuleType, tmp_path: Path, text: str, found: str
+) -> None:
+    path = tmp_path / "x-accounts.yaml"
+    path.write_text(text, encoding="utf-8")
+    with pytest.raises(probe.AccountsError) as refused:
+        probe.read_accounts(path)
+    message = str(refused.value)
+    assert message == f"the account list {path} holds {found}; {TAKES}"
+    assert "made_up" not in message.replace(str(path), ""), "no value of the list"
+
+
+WHY = "made_up first, made_up second, made_up third"
+SPLIT = (
+    "- {handle: example_one, category: press, region: US, why: made_up reason, check: seen}\n"
+    f"- {{handle: example_two, category: press, region: EU, why: {WHY}, check: candidate}}\n"
+)
+"""One-line records, the second's ``why`` split by unquoted commas: ``made_up second`` and
+``made_up third`` read as fields with no value between ``why`` and ``check``."""
+
+
+@pytest.mark.parametrize("wrapped", [False, True], ids=["bare", "wrapped"])
+def test_a_why_split_by_a_comma_is_named_by_its_field_and_no_fragment_printed(
+    probe: ModuleType, tmp_path: Path, capsys: pytest.CaptureFixture[str], wrapped: bool
+) -> None:
+    """The operator's case: one-line records whose ``why`` holds unquoted commas, in a bare
+    list and under ``accounts``; the error counts the stray fields and names ``why``."""
+    path = tmp_path / "x-accounts.yaml"
+    text = "accounts:\n" + textwrap.indent(SPLIT, "  ") if wrapped else SPLIT
+    path.write_text(text, encoding="utf-8")
+    message = (
+        "entry 2: 2 unknown fields; quote the value of why: an unquoted comma splits a flow mapping"
+    )
+    with pytest.raises(probe.AccountsError) as refused:
+        probe.read_accounts(path)
+    assert str(refused.value) == message
+    assert probe.main(["--accounts", str(path)], now=NOW) == 1
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    printed = captured.out
+    assert printed == f"not run: {message}\n"
+    for fragment in ("made_up", "first", "second", "third", "reason", "example_"):
+        assert fragment not in printed
+
+    path.write_text(text.replace(WHY, f'"{WHY}"'), encoding="utf-8")
+    assert [account.why for account in probe.read_accounts(path)] == ["made_up reason", WHY], (
+        "quoted, the value reads whole"
+    )
+
+
+RECORD_HAS = "a record has handle, name, category, region, lang, why, check"
+
+
+@pytest.mark.parametrize(
+    ("record", "message"),
+    [
+        (
+            "{handle: example_one, category: c, region: US, why: made_up a, made_up b, "
+            "check: seen}",
+            "entry 1: 1 unknown field; quote the value of why: an unquoted comma splits a "
+            "flow mapping",
+        ),
+        (
+            "{handle: example_one, name: made_up a, made_up b, category: c, region: US, "
+            "why: made_up c, made_up d, made_up e, check: seen}",
+            "entry 1: 3 unknown fields; quote the values of name and why: an unquoted comma "
+            "splits a flow mapping",
+        ),
+        (
+            "{handle: example_one, category: c, region: US, check: seen, made_up_key: "
+            "made_up_value}",
+            f"entry 1: 1 unknown field; {RECORD_HAS}",
+        ),
+        (
+            "{made_up_key, handle: example_one, category: c, region: US, check: seen}",
+            f"entry 1: 1 unknown field; {RECORD_HAS}",
+        ),
+        (
+            "{handle: example_one, category: c, region: US, why: made_up a, made_up b, "
+            "made_up_key: made_up_value, check: seen}",
+            f"entry 1: 2 unknown fields; {RECORD_HAS}",
+        ),
+    ],
+    ids=["why", "name-and-why", "a-value", "first", "a-value-among-them"],
+)
+def test_unknown_fields_are_counted_never_named(
+    probe: ModuleType, tmp_path: Path, record: str, message: str
+) -> None:
+    """The hint only when every unknown field has no value and follows a known one."""
+    path = tmp_path / "x-accounts.yaml"
+    path.write_text(f"- {record}\n", encoding="utf-8")
+    with pytest.raises(probe.AccountsError) as refused:
+        probe.read_accounts(path)
+    assert str(refused.value) == message
+    assert "made_up" not in message
+    assert "example_one" not in message
 
 
 def day(days_before_today: int) -> datetime:

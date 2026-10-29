@@ -10,7 +10,11 @@ The list (D4, Johannes, 2026-10-29) is a YAML list of records ``handle, name, ca
 region, lang, why, check``, ``check`` either ``seen`` or ``candidate``; it names
 individuals, so it lives in ``.local/x-accounts.yaml``, which git ignores, and never in
 the repository. ``handle``, ``category``, ``region`` and ``check`` are required; ``region``
-``US`` and ``EU`` are the regions D5 names.
+``US`` and ``EU`` are the regions D5 names. The file holds the list bare or under the one
+key ``accounts``. A value with a comma, a ``why`` or a ``name``, is quoted in a one-line
+record, a flow mapping, where an unquoted comma starts a field of its own. A list the
+probe refuses is named by its shape, an entry by its position and a field by its name,
+never by a value from the list.
 
 The calls, through the package's wrappers and its one client (N accounts, ``--days`` D, 90
 by default):
@@ -162,6 +166,8 @@ UNRESOLVED = "unresolved"
 FIELDS = ("handle", "name", "category", "region", "lang", "why", "check")
 REQUIRED = ("handle", "category", "region", "check")
 CHECKS = ("seen", "candidate")
+LIST_KEY = "accounts"
+"""The one key of a mapping that holds the list, which may also stand bare."""
 _HANDLE = re.compile(r"[A-Za-z0-9_]{1,15}")
 
 USER_FIELDS = [
@@ -229,7 +235,10 @@ def usd(mills: int) -> str:
 
 
 class AccountsError(ValueError):
-    """The account list cannot be read; the message names the entry and the field."""
+    """The account list cannot be read.
+
+    The message names the shape, the entry and the field, never a value from the list.
+    """
 
 
 class CapReached(Exception):
@@ -249,14 +258,83 @@ class Account:
     why: str = ""
 
 
+def _kind(value: object) -> str:
+    """What YAML read where the list belongs, by its type, never by its value."""
+    if value is None:
+        return "nothing"
+    if isinstance(value, list):
+        return "a list" if value else "an empty list"
+    if isinstance(value, dict):
+        return "a mapping" if value else "an empty mapping"
+    return "a scalar"
+
+
+def _records(path: Path, loaded: object) -> list[Any]:
+    """The entries of the list as YAML read it: the bare list, or the one key ``accounts``'s.
+
+    Raises:
+        AccountsError: Anything else; the message names the shape found, never a value.
+    """
+    found = _kind(loaded)
+    if isinstance(loaded, dict) and loaded:
+        if list(loaded) != [LIST_KEY]:
+            found = f"a mapping with keys other than {LIST_KEY}"
+        else:
+            loaded = loaded[LIST_KEY]
+            found = f"{LIST_KEY}: with {_kind(loaded)} under it"
+    if not isinstance(loaded, list) or not loaded:
+        raise AccountsError(
+            f"the account list {path} holds {found}; it takes a non-empty YAML list of "
+            f"records, bare or under the one key {LIST_KEY}"
+        )
+    return loaded
+
+
+def _split(record: Mapping[object, object]) -> list[str]:
+    """The fields an unquoted comma split, in the record's order, or none.
+
+    YAML reads ``{why: a, b, check: seen}`` as ``why: a``, a field ``b`` with no value and
+    ``check: seen``. So when every unknown field has no value and follows a known one, the
+    known field directly before each run of them is the one whose value lost its quotes.
+    """
+    split: list[str] = []
+    last = ""
+    for key, value in record.items():
+        if key in FIELDS:
+            last = str(key)
+        elif value is not None or not last:
+            return []
+        elif last not in split:
+            split.append(last)
+    return split
+
+
+def _unknown(number: int, record: Mapping[object, object]) -> AccountsError | None:
+    """The error for a record with fields outside ``FIELDS``, or ``None`` when it has none.
+
+    It counts them and never names them: an unquoted comma makes their names fragments of a
+    value.
+    """
+    count = sum(key not in FIELDS for key in record)
+    if not count:
+        return None
+    split = _split(record)
+    if split:
+        names = split[0] if len(split) == 1 else f"{', '.join(split[:-1])} and {split[-1]}"
+        value = "value" if len(split) == 1 else "values"
+        hint = f"quote the {value} of {names}: an unquoted comma splits a flow mapping"
+    else:
+        hint = f"a record has {', '.join(FIELDS)}"
+    fields = "field" if count == 1 else "fields"
+    return AccountsError(f"entry {number}: {count} unknown {fields}; {hint}")
+
+
 def _account(number: int, record: object) -> Account:
     if not isinstance(record, dict):
         raise AccountsError(f"entry {number} is not a record of {', '.join(FIELDS)}")
-    unknown = sorted(str(key) for key in record if key not in FIELDS)
-    if unknown:
-        raise AccountsError(
-            f"entry {number}: unknown fields {', '.join(unknown)}; a record has {', '.join(FIELDS)}"
-        )
+    unknown = _unknown(number, record)
+    if unknown is not None:
+        raise unknown
     values: dict[str, str] = {}
     for name in FIELDS:
         value = record.get(name)
@@ -282,29 +360,33 @@ def read_accounts(path: Path) -> list[Account]:
     """The account list at ``path``, checked before anything is called.
 
     Args:
-        path: A YAML list of records, e.g. ``.local/x-accounts.yaml``.
+        path: A YAML list of records, bare or under the one key ``accounts``, e.g.
+            ``.local/x-accounts.yaml``.
 
     Raises:
-        AccountsError: The file cannot be read, is not a non-empty YAML list, or an entry
-            is not a record of ``FIELDS`` with its required fields as text, a valid
-            handle and ``check`` ``seen`` or ``candidate``, or repeats a handle. The
-            message names the entry and the field, never a value.
+        AccountsError: The file cannot be read, is not UTF-8 text or not YAML, holds no
+            non-empty YAML list, bare or under ``accounts`` alone, or an entry is not a
+            record of ``FIELDS`` with its required fields as text, a valid handle and
+            ``check`` ``seen`` or ``candidate``, or repeats a handle. The message names the
+            path, the shape found, the line YAML stopped at, the entry by its position and
+            the field by its name, never a value: an unknown field is counted, and a value
+            an unquoted comma split is named by its field.
     """
     try:
         text = path.read_text(encoding="utf-8")
     except OSError as error:
         raise AccountsError(f"cannot read the account list {path}: {error.strerror}") from None
+    except UnicodeDecodeError:
+        raise AccountsError(f"the account list {path} is not UTF-8 text") from None
     try:
         records = yaml.safe_load(text)
     except yaml.YAMLError as error:
         mark = getattr(error, "problem_mark", None)
         where = f" (line {mark.line + 1})" if mark is not None else ""
         raise AccountsError(f"the account list {path} is not YAML{where}") from None
-    if not isinstance(records, list) or not records:
-        raise AccountsError(f"the account list {path} is not a non-empty YAML list of records")
     accounts: list[Account] = []
     seen: set[str] = set()
-    for number, record in enumerate(records, 1):
+    for number, record in enumerate(_records(path, records), 1):
         account = _account(number, record)
         if account.handle.lower() in seen:
             raise AccountsError(f"entry {number}: the handle is listed twice")
