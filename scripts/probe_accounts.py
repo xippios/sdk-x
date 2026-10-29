@@ -4,7 +4,7 @@ Run from the repository root: the estimate first, which calls nothing, then the 
 a cap, the key in the environment through direnv::
 
     uv run scripts/probe_accounts.py --accounts .local/x-accounts.yaml
-    direnv exec ~/github/sdk uv run scripts/probe_accounts.py --spend --spend-cap 12
+    direnv exec ~/github/sdk uv run scripts/probe_accounts.py --spend --spend-cap 9.75
 
 The list (D4, Johannes, 2026-10-29) is a YAML list of records ``handle, name, category,
 region, lang, why, check``, ``check`` either ``seen`` or ``candidate``; it names
@@ -35,8 +35,13 @@ prices of ``docs/upstream/pages/pricing.md`` (snapshot of 2026-10-29), and calls
 stops before a request whose upper bound would take the running spend past it. The running
 spend counts what each answer returns, 0.010 a user and 0.005 a post (``includes``
 too), and 0.010 a counts request, before X's same-day deduplication. No call asks for an
-expansion the formula leaves out, so the formula is the whole estimate. Estimate and
-actual spend are printed at the end, also when the run stops.
+expansion the formula leaves out, so the formula is the whole estimate. The estimate
+also prints the cap to pass: the formula and 0.005 USD an account for the fallback
+lookups, 9.750 USD at N=75; the requests' upper bounds add up to no more, so a cap at that
+figure never stops a run before its report. Estimate and actual spend are printed at the
+end, also when the run stops, and each run is added to the day's ledger,
+``.local/cache/<date>/spend.json`` (its requests and actual spend), whose total the report
+prints beside the run's: a same-day re-run reads the cache and spends nothing itself.
 
 Rate limits. ``GET /2/tweets/counts/all`` allows 300 requests per 15 minutes
 (``pages/rate-limits.md``) and a run makes 6N. The client paces at 60 a minute; X's 429
@@ -56,14 +61,20 @@ decision line against D5 and the samples, the only place post text appears. Only
 aggregates ever leave ``.local/``: the counts and the decision line, never a handle or a
 text. The console prints counts, waits, the spend, the decision line and the error that
 stops a run, in X's words where it gives them; it lists no handle and no text of its own.
+The wait and stop lines quote ``classify``'s method and path, which can carry a user id
+(``GET /2/users/<id>/tweets``): they are never pasted into a public record verbatim.
 
 Definitions and thresholds (D5, Johannes, 2026-10-29, the plan §8): an account is active
 with at least one original post (neither a repost nor a reply) in the last 14 days, core
 with an average of at least two original posts a week over the window. Go: at least 50%
 of the measured accounts active, and at least 25 core over 4 or more categories. US-only:
 go holds for region US alone, but region EU has fewer than 5 core; it is checked first,
-since it narrows a go. No-go otherwise. "The last k days" are the daily buckets from the
-UTC midnight k days before today's up to now, today's part included.
+since it narrows a go. No-go otherwise. Region and category are compared without regard
+to case, in the decision and the tables alike (``region_key``, ``category_key``). "The last
+k days" are k daily buckets, today's part and the k - 1 whole UTC days before it: 14 for
+active, 30 for each span of the trend, the window's D for the weekly average, D/7 weeks.
+``start_time`` is the UTC midnight D days before today's, so the oldest bucket X returns
+lies outside every window.
 """
 
 import argparse
@@ -177,6 +188,9 @@ QUERIES = {
 USAGE_PATH = "/usage/tweets"
 USAGE_FIELDS = ("project_usage", "project_cap", "cap_reset_day")
 """What the usage reading prints: the OpenAPI document's ``Usage`` fields."""
+
+LEDGER = "spend.json"
+"""The day's ledger in the cache's day directory: each run's requests and actual spend."""
 
 COLUMNS = (
     "handle",
@@ -351,8 +365,13 @@ class Plan:
         """The estimate in thousandths of a USD."""
         return sum(mills for _, _, mills in self.components)
 
+    @property
+    def cap(self) -> int:
+        """The cap to pass: the formula and a post an account for the fallback lookups."""
+        return self.total + PRICE_POST * self.accounts
+
     def lines(self) -> list[str]:
-        """The estimate as printed: N, the call plan, the formula, the time."""
+        """The estimate as printed: N, the call plan, the formula, the cap, the time."""
         n = self.accounts
         minutes = math.ceil(self.requests / RATE_LIMIT.per_minute)
         waits = max(0, math.ceil(self.counts / COUNTS_WINDOW) - 1)
@@ -389,6 +408,9 @@ class Plan:
         lines += [
             f"  {'total':<14} {'':<22} {usd(self.total):>8} USD",
             "X bills a resource read again the same UTC day once; counts requests every time",
+            f"cap: --spend-cap {usd(self.cap)}, the estimate and {usd(PRICE_POST)} USD an "
+            "account for the fallback lookups; the requests' upper bounds add up to no more, "
+            "so a cap at that figure never stops a run before its report",
             f"time: about {minutes} min of requests at {RATE_LIMIT.per_minute} a minute, and "
             f"{waits} wait(s) of up to {MAX_WAIT / 60:.0f} min for the counts window "
             f"({COUNTS_WINDOW} requests per 15 minutes)",
@@ -428,6 +450,23 @@ class Spend:
             f"estimate {usd(plan.total)} USD, actual {usd(self.spent)} USD in "
             f"{sum(self.requests.values())} requests, before X's same-day deduplication; "
             f"{sum(self.cached.values())} pages read from the cache"
+        )
+
+
+@dataclass(frozen=True)
+class Day:
+    """The day's ledger so far, this run's included: runs, requests and actual spend."""
+
+    date: str
+    runs: int
+    requests: int
+    spent: int
+
+    def line(self) -> str:
+        """The day's total, as printed beside the run's."""
+        return (
+            f"{self.date} (UTC) so far, {self.runs} run(s): {usd(self.spent)} USD in "
+            f"{self.requests} requests, before X's same-day deduplication"
         )
 
 
@@ -481,6 +520,43 @@ class Cache:
         path.write_text(json.dumps(page.dump_upstream(), ensure_ascii=False), encoding="utf-8")
 
 
+def record_run(cache: Cache, spend: Spend, now: datetime) -> Day:
+    """Add this run to the day's ledger, ``LEDGER`` in the cache's day directory.
+
+    Each run is kept with its time, its requests by call and its actual spend in USD, so a
+    same-day re-run, which reads the cache and spends nothing itself, still reports what
+    the day spent. A ledger that does not read as a JSON list starts again.
+
+    Returns:
+        The day's runs, requests and actual spend, this run's included.
+    """
+    path = cache.root / LEDGER
+    try:
+        runs = json.loads(path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, ValueError):
+        runs = []
+    if not isinstance(runs, list):
+        runs = []
+    runs.append(
+        {
+            "at": _time(now),
+            "requests": dict(sorted(spend.requests.items())),
+            "spent_usd": spend.spent / 1000,
+        }
+    )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(runs, indent=2) + "\n", encoding="utf-8")
+    requests = spent = 0
+    for run in runs:
+        calls = run.get("requests") if isinstance(run, dict) else None
+        if isinstance(calls, dict):
+            requests += sum(count for count in calls.values() if isinstance(count, int))
+        value = run.get("spent_usd") if isinstance(run, dict) else None
+        if isinstance(value, int | float):
+            spent += round(value * 1000)
+    return Day(date=f"{now:%Y-%m-%d}", runs=len(runs), requests=requests, spent=spent)
+
+
 async def with_waits[T](call: Callable[[], Awaitable[T]]) -> T:
     """``call()``, waiting out a spent rate-limit window and calling again (ADR-0010).
 
@@ -510,6 +586,11 @@ def midnight(moment: datetime) -> datetime:
 def window_start(now: datetime, days: int) -> datetime:
     """``start_time`` of the counts: the UTC midnight ``days`` days before today's."""
     return midnight(now) - timedelta(days=days)
+
+
+def last_days(now: datetime, days: int) -> datetime:
+    """The start of the last ``days`` days: today's part and the ``days - 1`` days before."""
+    return midnight(now) - timedelta(days=days - 1)
 
 
 def day_counts(pages: Iterable[GetPostsCountsAllResponse]) -> dict[datetime, int]:
@@ -563,18 +644,18 @@ def measure(
 
     Returns:
         Posts and original posts in the last 14 and 30 days, original posts a week over
-        the window, the first and the last 30 days of original posts and their ratio
-        (``None`` when the first 30 hold none), active and core.
+        the last ``days`` days, the first and the last 30 of those days' original posts
+        and their ratio (``None`` when the first 30 hold none), active and core. Each
+        span of k days is k daily buckets, today's part counted as one (``last_days``).
     """
-    start = window_start(now, days)
-    today = midnight(now)
-    per_week = posts_from(originals, start) / (days / 7)
-    first = posts_from(originals, start, start + timedelta(days=TREND_DAYS))
-    last = posts_from(originals, today - timedelta(days=TREND_DAYS))
-    recent = posts_from(originals, today - timedelta(days=ACTIVE_DAYS))
+    window = last_days(now, days)
+    per_week = posts_from(originals, window) / (days / 7)
+    first = posts_from(originals, window, window + timedelta(days=TREND_DAYS))
+    last = posts_from(originals, last_days(now, TREND_DAYS))
+    recent = posts_from(originals, last_days(now, ACTIVE_DAYS))
     return Activity(
-        posts_14d=posts_from(posts, today - timedelta(days=ACTIVE_DAYS)),
-        posts_30d=posts_from(posts, today - timedelta(days=RECENT_DAYS)),
+        posts_14d=posts_from(posts, last_days(now, ACTIVE_DAYS)),
+        posts_30d=posts_from(posts, last_days(now, RECENT_DAYS)),
         originals_14d=recent,
         originals_per_week=per_week,
         originals_first_30d=first,
@@ -633,6 +714,16 @@ class Tally:
         )
 
 
+def region_key(row: Row) -> str:
+    """The region the decision and the tables compare: upper case, e.g. ``US``."""
+    return row.account.region.strip().upper()
+
+
+def category_key(row: Row) -> str:
+    """The category the decision and the tables compare: case-folded, e.g. ``ministry``."""
+    return row.account.category.strip().casefold()
+
+
 def tally(rows: Iterable[Row]) -> Tally:
     """Count the measured, active and core accounts of ``rows``."""
     measured = [row for row in rows if row.measured]
@@ -641,12 +732,8 @@ def tally(rows: Iterable[Row]) -> Tally:
         measured=len(measured),
         active=sum(row.active for row in measured),
         core=len(core),
-        categories=len({row.account.category.casefold() for row in core}),
+        categories=len({category_key(row) for row in core}),
     )
-
-
-def _region(row: Row) -> str:
-    return row.account.region.upper()
 
 
 @dataclass(frozen=True)
@@ -662,8 +749,8 @@ class Decision:
 def decide(rows: Sequence[Row]) -> Decision:
     """Go, US-only or no-go by D5's thresholds; US-only first, since it narrows a go."""
     everyone = tally(rows)
-    us = tally(row for row in rows if _region(row) == US)
-    eu_core = tally(row for row in rows if _region(row) == EU).core
+    us = tally(row for row in rows if region_key(row) == US)
+    eu_core = tally(row for row in rows if region_key(row) == EU).core
     if us.holds and eu_core < US_ONLY_EU_CORE:
         verdict = US_ONLY
     elif everyone.holds:
@@ -768,14 +855,15 @@ def report(
     plan: Plan,
     spend: Spend,
     usage: str,
+    day: Day,
 ) -> str:
     """``probe-<date>.md``: summary, decision line, accounts not measured, spend, samples."""
-    start = window_start(now, days)
     lines = [
         f"# Account probe, {now:%Y-%m-%d}",
         "",
-        f"{len(rows)} accounts listed; posts counted by UTC day from {_time(start)} to "
-        f"{_time(now)}, {days} days and today's part. Measured: resolved and not protected. "
+        f"{len(rows)} accounts listed; posts counted by UTC day, today's part counted as one: "
+        f"the last {days} days run from {_time(last_days(now, days))} to {_time(now)}. "
+        "Region and category without regard to case. Measured: resolved and not protected. "
         f"Active: at least one original post (neither a repost nor a reply) in the last "
         f"{ACTIVE_DAYS} days. Core: at least {CORE_PER_WEEK:g} original posts a week on "
         f"average over the {days} days. Trend: original posts of the last {TREND_DAYS} days "
@@ -787,11 +875,11 @@ def report(
         "",
         "## By category",
         "",
-        *_table(rows, "category", lambda row: row.account.category),
+        *_table(rows, "category", category_key),
         "",
         "## By region",
         "",
-        *_table(rows, "region", lambda row: row.account.region),
+        *_table(rows, "region", region_key),
         "",
         "## Not measured",
         "",
@@ -804,7 +892,8 @@ def report(
         ]
     else:
         lines.append("None: every listed account was resolved and is public.")
-    lines += ["", "## Spend", "", f"This run: {spend.line(plan)}.", "", f"{usage}.", ""]
+    lines += ["", "## Spend", "", f"This run: {spend.line(plan)}.", ""]
+    lines += [f"The day so far: {day.line()}.", "", f"{usage}.", ""]
     lines += ["## Samples", ""]
     for row in rows:
         if not row.measured:
@@ -826,6 +915,7 @@ def write_reports(
     plan: Plan,
     spend: Spend,
     usage: str,
+    day: Day,
 ) -> tuple[Path, Path]:
     """Write ``probe-<date>.csv`` and ``probe-<date>.md`` into ``out``; their paths."""
     out.mkdir(parents=True, exist_ok=True)
@@ -835,7 +925,9 @@ def write_reports(
         writer.writeheader()
         writer.writerows(csv_row(row) for row in rows)
     md_path = out / f"probe-{now:%Y-%m-%d}.md"
-    text = report(rows, decision=decision, now=now, days=days, plan=plan, spend=spend, usage=usage)
+    text = report(
+        rows, decision=decision, now=now, days=days, plan=plan, spend=spend, usage=usage, day=day
+    )
     md_path.write_text(text, encoding="utf-8")
     return csv_path, md_path
 
@@ -1041,7 +1133,7 @@ class Probe:
             found = sum(post_id in dated for post_id in undated)
             self._step("get_posts_by_ids", f"{found} of {len(undated)} last posts dated")
         else:
-            _say("get_posts_by_ids: not needed, every expansion returned its post dated")
+            _say("get_posts_by_ids: not needed, no measured account's most recent post undated")
         counts: dict[str, tuple[dict[datetime, int], dict[datetime, int]]] = {}
         for account, _ in measured:
             counts[account.handle] = (
@@ -1176,12 +1268,15 @@ def main(argv: Sequence[str] | None = None, *, now: datetime | None = None) -> i
     try:
         rows = _probe(probe)
     except (CapReached, XippiosError) as error:
+        day = record_run(cache, spend, moment)
         _say(
             f"stopped: {error}",
             f"spend: {spend.line(plan)}",
+            f"day: {day.line()}",
             "the pages fetched are in the cache; a re-run today reads them without a request",
         )
         return 1
+    day = record_run(cache, spend, moment)
     decision = decide(rows)
     csv_path, md_path = write_reports(
         args.out,
@@ -1192,8 +1287,14 @@ def main(argv: Sequence[str] | None = None, *, now: datetime | None = None) -> i
         plan=plan,
         spend=spend,
         usage=probe.usage,
+        day=day,
     )
-    _say(f"spend: {spend.line(plan)}", f"wrote {csv_path} and {md_path}", decision_line(decision))
+    _say(
+        f"spend: {spend.line(plan)}",
+        f"day: {day.line()}",
+        f"wrote {csv_path} and {md_path}",
+        decision_line(decision),
+    )
     return 0
 
 

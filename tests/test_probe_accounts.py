@@ -17,6 +17,9 @@ nothing reaches X. How the recorded answers stand in:
 - ``GET /2/usage/tweets`` has no wrapper and no fixture: the test builds its answer in the
   OpenAPI document's ``Usage`` shape with made-up numbers, as ``test_record_fixture.py``
   builds the answers it records, and ``test_client.py`` its 429.
+- ``get_users_by_usernames/partial_errors`` answers a list with one handle X does not
+  find; a protected account is a built answer with a made-up user, as no recorded account
+  is protected.
 
 The metric, decision and cap tests use synthetic daily buckets and rows.
 """
@@ -37,7 +40,14 @@ import httpx
 import pytest
 import respx
 from xippios.core import RateLimitError
-from xippios.core.testing import ReplayFixture, fixture_path, load_fixture, sent_query, sent_urls
+from xippios.core.testing import (
+    CLOCK_SLACK,
+    ReplayFixture,
+    fixture_path,
+    load_fixture,
+    sent_query,
+    sent_urls,
+)
 
 from xippios.x import api
 from xippios.x._client import BILLING_CYCLE
@@ -52,6 +62,8 @@ USAGE_URL = "https://api.x.com/2/usage/tweets"
 USAGE = {"data": {"project_usage": "1234", "project_cap": "3000000", "cap_reset_day": 7}}
 """A made-up answer in the document's ``Usage`` shape; X's own is not recorded."""
 TEXT = "[text rewritten]"
+SLACK = CLOCK_SLACK.total_seconds()
+"""This host's clock steps back about two seconds (``CLAUDE.md`` of the workspace)."""
 HANDLES = ("XDevelopers", "USDA", "FAO")
 ACCOUNTS = """\
 - handle: XDevelopers
@@ -161,6 +173,11 @@ def buckets(case: str) -> dict[str, int]:
     }
 
 
+def first_day(days: int, *, later: int = 0) -> str:
+    """The first of the last ``days`` days of ``NOW``, today counted as one, plus ``later``."""
+    return (NOW.date() - timedelta(days=days - 1) + timedelta(days=later)).isoformat()
+
+
 def between(counts: dict[str, int], since: str, until: str = "9999") -> int:
     return sum(count for start, count in counts.items() if since <= start < until)
 
@@ -238,18 +255,23 @@ def test_the_probe_replays_the_three_accounts_into_its_reports(
     # USDA's buckets as the routes served them, counted here from the fixtures' JSON.
     every = buckets("usda_by_day") | buckets("usda_by_day_page_2")
     originals = buckets("usda_originals_by_day") | buckets("usda_by_day_page_2")
-    first_30 = between(originals, "2026-07-31", "2026-08-30")
-    last_30 = between(originals, "2026-09-29")
-    per_week = sum(originals.values()) / (90 / 7)
+    assert (first_day(90), first_day(30), first_day(14)) == (
+        "2026-08-01",
+        "2026-09-30",
+        "2026-10-16",
+    )
+    first_30 = between(originals, first_day(90), first_day(90, later=30))
+    last_30 = between(originals, first_day(30))
+    per_week = between(originals, first_day(90)) / (90 / 7)
     measured = {
-        "posts_14d": str(between(every, "2026-10-15")),
-        "posts_30d": str(between(every, "2026-09-29")),
-        "originals_14d": str(between(originals, "2026-10-15")),
+        "posts_14d": str(between(every, first_day(14))),
+        "posts_30d": str(between(every, first_day(30))),
+        "originals_14d": str(between(originals, first_day(14))),
         "originals_per_week": f"{per_week:.2f}",
         "originals_first_30d": str(first_30),
         "originals_last_30d": str(last_30),
         "trend": f"{last_30 / first_30:.2f}" if first_30 else "",
-        "active": "yes" if between(originals, "2026-10-15") else "no",
+        "active": "yes" if between(originals, first_day(14)) else "no",
         "core": "yes" if per_week >= 2 else "no",
     }
     for row in rows:
@@ -291,6 +313,7 @@ def test_the_probe_replays_the_three_accounts_into_its_reports(
     assert line in printed
     actual = probe.usd(USERS + billed_dating() + COUNTS + SAMPLES)
     assert f"spend: estimate 0.375 USD, actual {actual} USD in 24 requests" in printed
+    assert f"day: 2026-10-29 (UTC) so far, 1 run(s): {actual} USD in 24 requests" in printed
     assert "usage (GET /2/usage/tweets): project_usage 1234, project_cap 3000000" in printed
     assert all(handle not in printed for handle in HANDLES), "the console prints no handle"
     assert TEXT not in printed
@@ -303,6 +326,23 @@ def test_the_probe_replays_the_three_accounts_into_its_reports(
     again = capsys.readouterr().out
     assert "actual 0.000 USD in 0 requests, before X's same-day deduplication; 23 pages" in again
     assert "usage: not read, nothing was fetched" in again
+    day = f"2026-10-29 (UTC) so far, 2 run(s): {actual} USD in 24 requests"
+    assert f"day: {day}" in again
+    rewritten = (out / "probe-2026-10-29.md").read_text(encoding="utf-8")
+    assert "This run: estimate 0.375 USD, actual 0.000 USD in 0 requests" in rewritten
+    assert f"The day so far: {day}" in rewritten
+    ledger = json.loads((listed.parent / "cache" / "2026-10-29" / "spend.json").read_text())
+    assert [(run["at"], run["spent_usd"]) for run in ledger] == [
+        ("2026-10-29T16:00:00Z", float(actual)),
+        ("2026-10-29T16:00:00Z", 0.0),
+    ]
+    assert ledger[0]["requests"] == {
+        "GET /2/usage/tweets": 1,
+        "get_posts_by_ids": 1,
+        "get_posts_counts_all": 18,
+        "get_users_by_usernames": 1,
+        "get_users_posts": 3,
+    }
 
 
 def test_a_run_stopped_at_the_cap_keeps_its_pages_for_the_next(
@@ -328,8 +368,11 @@ def test_a_run_stopped_at_the_cap_keeps_its_pages_for_the_next(
         f"{spent} USD past the cap of 0.380 USD; nothing was sent"
     ) in printed
     assert f"spend: estimate 0.375 USD, actual {spent} USD in 22 requests" in printed
+    assert f"day: 2026-10-29 (UTC) so far, 1 run(s): {spent} USD in 22 requests" in printed
 
     assert probe.main(spend_argv(listed, "1"), now=NOW) == 0
+    whole = probe.usd(USERS + billed_dating() + COUNTS + SAMPLES)
+    assert f"so far, 2 run(s): {whole} USD in 24 requests" in capsys.readouterr().out
     resumed = calls(routes)
     assert {name: resumed[name] - stopped[name] for name in resumed} == {
         "users": 0,
@@ -341,6 +384,149 @@ def test_a_run_stopped_at_the_cap_keeps_its_pages_for_the_next(
         "usage": 1,
     }
     assert (out / "probe-2026-10-29.md").exists()
+
+
+def read_rows(out: Path) -> list[dict[str, str]]:
+    with (out / "probe-2026-10-29.csv").open(encoding="utf-8", newline="") as stream:
+        return list(csv.DictReader(stream))
+
+
+def test_an_unresolved_handle_is_reported_and_dropped(
+    probe: ModuleType,
+    replay_fixture: ReplayFixture,
+    respx_mock: respx.MockRouter,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """``partial_errors`` finds @XDevelopers and answers the other handle with a problem:
+    that account is unresolved, gets no counts and no sample, and the report says why in
+    X's words. Recorded without the expansion, @XDevelopers' last post is its sample's
+    newest, and no posts lookup runs (none is mounted)."""
+    listed = tmp_path / "x-accounts.yaml"
+    listed.write_text(
+        "- {handle: XDevelopers, category: platform, region: US, check: seen}\n"
+        "- {handle: xippiosnouser01, category: platform, region: US, check: candidate}\n",
+        encoding="utf-8",
+    )
+    users = replay_fixture("get_users_by_usernames", "partial_errors")
+    sample = replay_fixture("get_users_posts", "xdevelopers_ten")
+    counts = respx_mock.get(COUNTS_URL).mock(side_effect=counts_answer)
+    usage = respx_mock.get(USAGE_URL).mock(return_value=httpx.Response(200, json=USAGE))
+    assert probe.main(spend_argv(listed, "1"), now=NOW) == 0
+    assert (users.call_count, sample.call_count, counts.call_count, usage.call_count) == (
+        1,
+        1,
+        6,
+        1,
+    )
+    printed = capsys.readouterr().out
+    assert "1 of 2 resolved, 0 protected, 1 unresolved" in printed
+    assert "get_posts_by_ids: not needed" in printed
+
+    found, missing = read_rows(listed.parent / "out")
+    assert (found["handle"], found["status"], found["resolved"]) == (
+        "XDevelopers",
+        "measured",
+        "yes",
+    )
+    assert found["last_post"] == "2026-10-27T00:37:06Z"
+    assert (missing["handle"], missing["status"], missing["resolved"]) == (
+        "xippiosnouser01",
+        "unresolved",
+        "no",
+    )
+    kept = {"handle", "status", "resolved", "category", "region", "check"}
+    assert {name: missing[name] for name in probe.COLUMNS if name not in kept} == dict.fromkeys(
+        set(probe.COLUMNS) - kept, ""
+    )
+
+    report = (listed.parent / "out" / "probe-2026-10-29.md").read_text(encoding="utf-8")
+    assert (
+        "| @xippiosnouser01 | unresolved | Not Found Error: Could not find user with usernames: "
+        "[xippiosnouser01]. |"
+    ) in report.splitlines()
+    assert "| platform | 2 | 1 | 1 | 1 | 1 |" in report.splitlines()
+    samples = report.split("## Samples", 1)[1]
+    assert [line for line in samples.splitlines() if line.startswith("### ")] == [
+        "### @XDevelopers (platform, US)"
+    ]
+
+
+def test_a_protected_account_is_reported_and_dropped(
+    probe: ModuleType,
+    respx_mock: respx.MockRouter,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A built answer with a made-up protected user: reported, never counted or sampled
+    (no counts or timeline route is mounted), and the decision has none measured."""
+    listed = tmp_path / "x-accounts.yaml"
+    listed.write_text(
+        "- {handle: made_up_handle, category: press, region: EU, check: candidate}\n",
+        encoding="utf-8",
+    )
+    user = {"id": "12", "username": "made_up_handle", "name": "Made Up", "protected": True}
+    built = {"data": [user]}
+    users = respx_mock.get("https://api.x.com/2/users/by").mock(
+        return_value=httpx.Response(200, json=built)
+    )
+    usage = respx_mock.get(USAGE_URL).mock(return_value=httpx.Response(200, json=USAGE))
+    assert probe.main(spend_argv(listed, "1"), now=NOW) == 0
+    assert (users.call_count, usage.call_count) == (1, 1)
+    printed = capsys.readouterr().out
+    assert "1 of 1 resolved, 1 protected, 0 unresolved" in printed
+    assert "actual 0.010 USD in 2 requests" in printed
+
+    (row,) = read_rows(listed.parent / "out")
+    assert (row["status"], row["resolved"], row["protected"], row["active"]) == (
+        "protected",
+        "yes",
+        "yes",
+        "",
+    )
+    report = (listed.parent / "out" / "probe-2026-10-29.md").read_text(encoding="utf-8")
+    assert "| @made_up_handle | protected | protected |" in report.splitlines()
+    assert "Measured accounts: 0 of 0 active (none measured)" in report
+    assert not [line for line in report.split("## Samples", 1)[1].splitlines() if line]
+
+
+def test_the_tables_group_region_and_category_as_the_decision_does(probe: ModuleType) -> None:
+    """``us`` and ``US`` are one region, ``Ministry`` and ``ministry`` one category, in the
+    tables as in the decision."""
+    rows = rows_of(
+        probe,
+        [
+            (1, "Ministry", "us", True, True),
+            (1, "ministry", "US", True, True),
+            (1, "press", "eu", True, False),
+        ],
+    )
+    decision = probe.decide(rows)
+    assert (decision.us.measured, decision.everyone.categories) == (2, 1)
+    text = probe.report(
+        rows,
+        decision=decision,
+        now=NOW,
+        days=90,
+        plan=probe.Plan(3, 90),
+        spend=probe.Spend(cap=1000),
+        usage="usage: not read",
+        day=probe.Day(date="2026-10-29", runs=1, requests=0, spent=0),
+    )
+    categories = text.split("## By category", 1)[1].split("## By region", 1)[0].splitlines()
+    regions = text.split("## By region", 1)[1].split("## Not measured", 1)[0].splitlines()
+    assert [line for line in categories if line.startswith("| ") and "---" not in line] == [
+        "| category | listed | resolved | measured | active | core |",
+        "| ministry | 2 | 0 | 2 | 2 | 2 |",
+        "| press | 1 | 0 | 1 | 1 | 0 |",
+        "| all | 3 | 0 | 3 | 3 | 2 |",
+    ]
+    assert [line for line in regions if line.startswith("| ") and "---" not in line] == [
+        "| region | listed | resolved | measured | active | core |",
+        "| EU | 1 | 0 | 1 | 1 | 0 |",
+        "| US | 2 | 0 | 2 | 2 | 2 |",
+        "| all | 3 | 0 | 3 | 3 | 2 |",
+    ]
 
 
 def test_a_cap_under_the_estimate_refuses_before_any_call(
@@ -404,6 +590,9 @@ def test_the_estimate_for_75_accounts_calls_nothing(
     plan = probe.Plan(75, 90)
     assert [mills for _, _, mills in plan.components] == [750, 375, 4500, 3750]
     assert plan.total == 9375, "the formula is the whole estimate: no call asks for more"
+    assert plan.cap == 9750, "and 0.005 USD an account for the fallback lookups"
+    assert printed.count("cap: --spend-cap 9.750, the estimate and 0.005 USD an account") == 2
+    assert "a cap at that figure never stops a run before its report" in printed
     assert "get_users_posts            75  10 posts each, no expansion" in printed
 
 
@@ -468,9 +657,9 @@ def test_active_needs_an_original_post_in_the_last_14_days(probe: ModuleType) ->
     def active(posts: dict[datetime, int], originals: dict[datetime, int]) -> bool:
         return bool(probe.measure(posts, originals, now=NOW, days=90).active)
 
-    assert active({}, {day(14): 1}), "the bucket 14 days before today's is in"
+    assert active({}, {day(13): 1}), "the 14th bucket, today's part counted as one, is in"
     assert active({}, {day(0): 1}), "today's part counts"
-    assert not active({}, {day(15): 1})
+    assert not active({}, {day(14): 1})
     assert not active({day(0): 7}, {}), "reposts and replies do not make an account active"
 
 
@@ -483,15 +672,15 @@ def test_core_is_two_original_posts_a_week_over_the_window(probe: ModuleType) ->
     assert probe.measure({}, enough, now=NOW, days=90).originals_per_week == pytest.approx(
         needed / (90 / 7)
     )
-    before = {day(91): 50, day(1): 1}
+    before = {day(90): 50, day(1): 1}
     assert probe.measure({}, before, now=NOW, days=90).originals_per_week == pytest.approx(
         1 / (90 / 7)
-    ), "a bucket before the window does not count"
+    ), "start_time's bucket, 90 days back, lies outside the 90 days"
 
 
 def test_the_trend_sets_the_last_30_days_against_the_first_30(probe: ModuleType) -> None:
-    originals = {day(90): 4, day(61): 6, day(60): 100, day(30): 5, day(0): 1}
-    activity = probe.measure({day(14): 2, day(29): 3, day(31): 4}, originals, now=NOW, days=90)
+    originals = {day(89): 4, day(60): 6, day(59): 100, day(29): 5, day(0): 1}
+    activity = probe.measure({day(13): 2, day(29): 3, day(30): 4}, originals, now=NOW, days=90)
     assert (activity.originals_first_30d, activity.originals_last_30d) == (10, 6)
     assert activity.trend == pytest.approx(0.6)
     assert (activity.posts_14d, activity.posts_30d) == (2, 5)
@@ -505,6 +694,16 @@ def test_the_trend_sets_the_last_30_days_against_the_first_30(probe: ModuleType)
         "yes",
     )
     assert (cells["resolved"], cells["followers"], cells["last_post"]) == ("no", "", "")
+
+
+def test_each_span_of_k_days_is_k_buckets(probe: ModuleType) -> None:
+    """One post a day from start_time's bucket to today's part: 14, 30, 30 and 90 buckets."""
+    daily = {day(n): 1 for n in range(91)}
+    activity = probe.measure(daily, daily, now=NOW, days=90)
+    assert (activity.posts_14d, activity.posts_30d, activity.originals_14d) == (14, 30, 14)
+    assert (activity.originals_first_30d, activity.originals_last_30d) == (30, 30)
+    assert activity.trend == 1.0
+    assert activity.originals_per_week == pytest.approx(7.0)
 
 
 def rows_of(probe: ModuleType, groups: list[tuple[int, str, str, bool, bool]]) -> list[Any]:
@@ -657,7 +856,7 @@ async def test_a_spent_window_is_waited_out_and_the_request_sent_again(
     page = await probe.with_waits(call)
     assert route.call_count == 2
     assert len(waits) == 1
-    assert 590 < waits[0] <= 600
+    assert 600 - SLACK <= waits[0] <= 600 + SLACK
     assert page.meta is not None
     assert page.meta.total_post_count == 218
     printed = capsys.readouterr().out
