@@ -669,7 +669,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.wrapper in UNPRICED and not args.wrong_key:
         print(  # noqa: T201
             f"estimate: no price; pages/pricing.md (2026-10-29) states none for GET "
-            f"{operation.path}"
+            f"/2{operation.path}"
         )
     else:
         print(  # noqa: T201

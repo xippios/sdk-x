@@ -1,0 +1,113 @@
+{
+  "recorded_at": "2026-10-29T22:12:13.945648Z",
+  "request": {
+    "body": null,
+    "body_base64": false,
+    "content_type": null,
+    "method": "GET",
+    "url": "https://api.x.com/2/usage/tweets?days=7&usage.fields=cap_reset_day%2Cdaily_client_app_usage%2Cdaily_project_usage%2Cproject_cap%2Cproject_id%2Cproject_usage"
+  },
+  "response": {
+    "body": "{\"data\":{\"cap_reset_day\":29,\"daily_client_app_usage\":[{\"client_app_id\":\"33587163\",\"usage_result_count\":0},{\"client_app_id\":\"33587190\",\"usage\":[{\"date\":\"2026-10-29T00:00:00.000Z\",\"usage\":\"458\"}],\"usage_result_count\":1}],\"daily_project_usage\":{\"project_id\":\"2115773510115352676\",\"usage\":[{\"date\":\"2026-10-29T00:00:00.000Z\",\"usage\":\"458\"}]},\"project_cap\":\"3000000\",\"project_id\":\"2115773510115352676\",\"project_usage\":\"458\"}}",
+    "body_base64": false,
+    "headers": [
+      [
+        "date",
+        "Thu, 29 Oct 2026 22:12:11 GMT"
+      ],
+      [
+        "content-type",
+        "application/json; charset=utf-8"
+      ],
+      [
+        "perf",
+        "7402827104"
+      ],
+      [
+        "server",
+        "cloudflare envoy"
+      ],
+      [
+        "set-cookie",
+        "REDACTED"
+      ],
+      [
+        "set-cookie",
+        "REDACTED"
+      ],
+      [
+        "api-version",
+        "2.173"
+      ],
+      [
+        "cache-control",
+        "no-cache, no-store, max-age=0"
+      ],
+      [
+        "x-access-level",
+        "read"
+      ],
+      [
+        "x-frame-options",
+        "SAMEORIGIN"
+      ],
+      [
+        "x-transaction-id",
+        "7db1c9b277e2efeb"
+      ],
+      [
+        "x-xss-protection",
+        "0"
+      ],
+      [
+        "x-rate-limit-limit",
+        "50"
+      ],
+      [
+        "x-rate-limit-reset",
+        "1793312831"
+      ],
+      [
+        "content-disposition",
+        "attachment; filename=json.json"
+      ],
+      [
+        "x-content-type-options",
+        "nosniff"
+      ],
+      [
+        "x-rate-limit-remaining",
+        "49"
+      ],
+      [
+        "x-response-time",
+        "70"
+      ],
+      [
+        "origin-cf-ray",
+        "a5258532de490208-ZRH"
+      ],
+      [
+        "strict-transport-security",
+        "max-age=631138519; includeSubdomains"
+      ],
+      [
+        "x-served-by",
+        "t4_a"
+      ],
+      [
+        "cf-cache-status",
+        "DYNAMIC"
+      ],
+      [
+        "vary",
+        "accept-encoding"
+      ],
+      [
+        "cf-ray",
+        "a5258532de490208-ZRH"
+      ]
+    ],
+    "status": 200
+  }
+}

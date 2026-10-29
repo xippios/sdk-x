@@ -1,4 +1,4 @@
-"""Replay tests for the eight endpoint wrappers (layer 1), one per recorded case.
+"""Replay tests for the nine endpoint wrappers (layer 1), one per recorded case.
 
 The fixtures were recorded on 2026-10-29 from @XDevelopers, @USDA and @FAO and from a List
 @XDevelopers owns, with the free text rewritten by the recorder (D1,
@@ -9,7 +9,7 @@ what was sent with ``sent_query``; a page is dumped with ``dump_upstream`` and r
 the same model, as the probe's cache will.
 """
 
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta, timezone
 from pathlib import Path
 
 import httpx
@@ -32,6 +32,7 @@ from xippios.x.models import (
     GetPostsByIdsResponse,
     GetPostsCountsAllResponse,
     GetPostsCountsRecentResponse,
+    GetUsageResponse,
     GetUsersByUsernamesResponse,
     GetUsersPostsResponse,
     Granularity,
@@ -39,6 +40,7 @@ from xippios.x.models import (
     PostField,
     SearchPostsRecentResponse,
     SortOrder,
+    UsageField,
     UserExpansion,
     UserField,
 )
@@ -388,6 +390,31 @@ async def test_search_posts_recent_sends_the_documents_names(
     }
 
 
+async def test_search_posts_recent_conversation(replay_fixture: ReplayFixture) -> None:
+    """A conversation of @USDA's: the posts whose ``conversation_id`` is the id of the post
+    that started it, that post among them, newest first; the replies' text rewritten, their
+    ids, times and metrics as sent (Johannes, 2026-10-29)."""
+    root = "2115806101480337475"
+    route = replay_fixture("search_posts_recent", "usda_conversation")
+    page = await api.search_posts_recent(
+        f"conversation_id:{root}", max_results=10, post_fields=PLAN_POST_FIELDS
+    )
+    assert sent_query(route) == recorded("search_posts_recent", "usda_conversation")
+    assert page.data is not None
+    assert page.meta is not None
+    assert len(page.data) == page.meta.result_count == 10
+    assert {post.conversation_id for post in page.data} == {root}
+    assert page.data[-1].id == page.meta.oldest_id == root
+    times = [post.created_at for post in page.data if post.created_at is not None]
+    assert times == sorted(times, reverse=True), "newest first"
+    assert {post.text for post in page.data} == {TEXT}
+    assert page.data[-1].public_metrics is not None
+    assert page.data[-1].public_metrics.reply_count == 7
+    assert page.meta.next_token
+    assert page.includes is None
+    assert SearchPostsRecentResponse.model_validate(page.dump_upstream()) == page
+
+
 async def test_search_posts_recent_refused_query(replay_fixture: ReplayFixture) -> None:
     """A query X cannot parse is its HTTP 400, ``InvalidRequestError`` with its words."""
     route = replay_fixture("search_posts_recent", "unbalanced_parenthesis")
@@ -504,9 +531,38 @@ async def test_lists_members_sends_the_documents_names(replay_fixture: ReplayFix
     }
 
 
+async def test_usage(replay_fixture: ReplayFixture) -> None:
+    """The project's usage over seven days in the document's shape, which the usage page's
+    example does not have: the daily usage of the project and of each client app, its
+    numbers digit strings on the wire, read as numbers."""
+    route = replay_fixture("get_usage", "seven_days")
+    answer = await api.get_usage(days=7, usage_fields=list(UsageField))
+    assert sent_query(route) == recorded("get_usage", "seven_days")
+    assert answer.errors is None
+    usage = answer.data
+    assert usage is not None
+    assert usage.cap_reset_day == 29
+    assert usage.project_cap == 3_000_000
+    assert usage.project_usage == 458
+    assert usage.project_id is not None
+    assert usage.daily_project_usage is not None
+    assert usage.daily_project_usage.project_id == usage.project_id
+    assert usage.daily_project_usage.usage is not None
+    (day,) = usage.daily_project_usage.usage
+    assert (day.date.date(), day.usage) == (date(2026, 10, 29), 458)
+    assert usage.daily_client_app_usage is not None
+    assert [app.usage_result_count for app in usage.daily_client_app_usage] == [0, 1]
+    assert usage.daily_client_app_usage[0].usage is None
+    assert GetUsageResponse.model_validate(answer.dump_upstream()) == answer
+
+
 @pytest.mark.parametrize(
     "call",
     [
+        lambda: api.get_usage(days=0),
+        lambda: api.get_usage(days=91),
+        lambda: api.get_usage(usage_fields=[]),
+        lambda: api.get_usage(usage_fields=[UsageField.PROJECT_ID, UsageField.PROJECT_ID]),
         lambda: api.get_users_by_usernames([]),
         lambda: api.get_users_by_usernames("USDA"),
         lambda: api.get_users_by_usernames([f"user{n}" for n in range(101)]),
