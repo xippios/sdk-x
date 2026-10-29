@@ -215,16 +215,22 @@ spends one billable lookup a night.
 gate P report (the plan §8; D5's thresholds are named constants in it). It prints its
 estimate first and calls nothing (`uv run scripts/probe_accounts.py`: N, the call plan and
 the plan's formula at the snapshot's prices, 9.375 USD at N=75, the whole estimate, since
-its ten-post samples ask for no expansion); it spends only with
-`--spend --spend-cap USD`, the key through direnv
-(`direnv exec ~/github/sdk uv run scripts/probe_accounts.py --spend --spend-cap 12`),
+its ten-post samples ask for no expansion), and the cap to pass: the formula and 0.005 USD
+an account for the fallback lookups, 9.750 USD at N=75. The requests' upper bounds add up
+to no more, so a cap at that figure never stops a run before its report. It spends only
+with `--spend --spend-cap USD`, the key through direnv
+(`direnv exec ~/github/sdk uv run scripts/probe_accounts.py --spend --spend-cap 9.75`),
 refuses when the estimate exceeds the cap and stops before a request that could pass it.
 It reads `.local/x-accounts.yaml` (`--accounts`), keeps every page under
 `.local/cache/<date>/`, so a stopped or repeated run the same UTC day pays only for what it
-has not fetched, and writes `.local/probe-<date>.csv` and `.local/probe-<date>.md`.
+has not fetched, adds each run's requests and actual spend to that day's
+`.local/cache/<date>/spend.json`, and writes `.local/probe-<date>.csv` and
+`.local/probe-<date>.md`, whose Spend section gives the run's spend and the day's.
 `GET /2/tweets/counts/all` allows 300 requests per 15 minutes and a run makes 6N: on X's
 429 the probe prints the wait, sleeps it, 15 minutes at most, and resumes. Only aggregates
-leave `.local/`: counts and the decision line, never a handle or a post's text.
+leave `.local/`: counts and the decision line, never a handle or a post's text. The wait
+and stop lines quote `classify`'s method and path, which can carry a user id
+(`GET /2/users/<id>/tweets`), so they are never pasted into a public record verbatim.
 
 ### Operator-only files
 

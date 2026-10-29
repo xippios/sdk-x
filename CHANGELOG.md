@@ -38,8 +38,9 @@ All notable changes to this project are documented here. The format follows
   prints its spend estimate and call plan without a request, and only with `--spend
   --spend-cap` looks the accounts up, counts their posts and original posts by day over
   90 days and samples ten posts each, waiting out X's rate-limit windows and keeping every
-  page in a same-day cache; it writes a CSV and a Markdown report with the go, US-only or
-  no-go decision under `.local/`, which git now ignores.
+  page in a same-day cache with a ledger of the day's spend; it writes a CSV and a
+  Markdown report with the go, US-only or no-go decision under `.local/`, which git now
+  ignores.
 
 ### Changed
 
