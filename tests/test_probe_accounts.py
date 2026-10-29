@@ -41,7 +41,7 @@ from xippios.core.testing import ReplayFixture, fixture_path, load_fixture, sent
 
 from xippios.x import api
 from xippios.x._client import BILLING_CYCLE
-from xippios.x.models import GetPostsCountsAllResponse, Granularity
+from xippios.x.models import GetPostsByIdsResponse, GetPostsCountsAllResponse, Granularity
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "probe_accounts.py"
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -137,6 +137,22 @@ def calls(routes: dict[str, respx.Route]) -> dict[str, int]:
     return {name: route.call_count for name, route in routes.items()}
 
 
+def billed_dating() -> int:
+    """Thousandths of a USD the replayed ``get_posts_by_ids`` answer bills, read from the
+    fixture as it stands, so the test holds whether or not it carries a referenced post in
+    ``includes``."""
+    fixture = load_fixture(fixture_path(FIXTURES, "get_posts_by_ids", "most_recent_three"))
+    page = GetPostsByIdsResponse.model_validate_json(fixture.response.body)
+    included = page.includes.posts if page.includes is not None else None
+    return 5 * (len(page.data or []) + len(included or []))
+
+
+USERS = 3 * 10 + 3 * 5
+"""What ``three_accounts`` bills: three users and their three most recent posts."""
+COUNTS = 18 * 10
+SAMPLES = (10 + 9 + 10) * 5
+
+
 def buckets(case: str) -> dict[str, int]:
     """The recorded buckets' counts by their start, read from the fixture's JSON."""
     fixture = load_fixture(fixture_path(FIXTURES, "get_posts_counts_all", case))
@@ -183,7 +199,6 @@ def test_the_probe_replays_the_three_accounts_into_its_reports(
     assert sent_query(routes["usda_ten"]) == {
         "max_results": "10",
         "post.fields": "created_at,lang,public_metrics,conversation_id",
-        "expansions": "referenced_posts",
     }
     sent = [httpx.URL(url).params for url in sent_urls(routes["counts"])]
     assert {(params["granularity"], params["start_time"]) for params in sent} == {
@@ -274,7 +289,8 @@ def test_the_probe_replays_the_three_accounts_into_its_reports(
 
     printed = capsys.readouterr().out
     assert line in printed
-    assert "spend: estimate 0.375 USD, actual 0.390 USD in 24 requests" in printed
+    actual = probe.usd(USERS + billed_dating() + COUNTS + SAMPLES)
+    assert f"spend: estimate 0.375 USD, actual {actual} USD in 24 requests" in printed
     assert "usage (GET /2/usage/tweets): project_usage 1234, project_cap 3000000" in printed
     assert all(handle not in printed for handle in HANDLES), "the console prints no handle"
     assert TEXT not in printed
@@ -295,28 +311,31 @@ def test_a_run_stopped_at_the_cap_keeps_its_pages_for_the_next(
     listed: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """At 0.38 USD the counts fit, a sample's upper bound (0.150) does not: the run stops
-    before it and writes no report; a re-run with a higher cap fetches only the rest."""
+    """At 0.38 USD, above the estimate of 0.375, two samples fit and the third's upper
+    bound (ten posts, 0.050) does not: the run stops before it and writes no report; a
+    re-run with a higher cap fetches only the rest."""
     out = listed.parent / "out"
     assert probe.main(spend_argv(listed, "0.38"), now=NOW) == 1
     stopped = calls(routes)
     assert stopped["counts"] == 18
-    assert (stopped["xdevelopers_ten"], stopped["usage"]) == (0, 0)
+    assert (stopped["xdevelopers_ten"], stopped["usda_ten"]) == (1, 1)
+    assert (stopped["fao_ten"], stopped["usage"]) == (0, 0)
     assert not out.exists()
+    spent = probe.usd(USERS + billed_dating() + COUNTS + (10 + 9) * 5)
     printed = capsys.readouterr().out
     assert (
-        "stopped: the next request (get_users_posts, up to 0.150 USD) could take the spend of "
-        "0.245 USD past the cap of 0.380 USD; nothing was sent"
+        "stopped: the next request (get_users_posts, up to 0.050 USD) could take the spend of "
+        f"{spent} USD past the cap of 0.380 USD; nothing was sent"
     ) in printed
-    assert "spend: estimate 0.375 USD, actual 0.245 USD in 20 requests" in printed
+    assert f"spend: estimate 0.375 USD, actual {spent} USD in 22 requests" in printed
 
     assert probe.main(spend_argv(listed, "1"), now=NOW) == 0
     resumed = calls(routes)
     assert {name: resumed[name] - stopped[name] for name in resumed} == {
         "users": 0,
         "posts": 0,
-        "xdevelopers_ten": 1,
-        "usda_ten": 1,
+        "xdevelopers_ten": 0,
+        "usda_ten": 0,
         "fao_ten": 1,
         "counts": 0,
         "usage": 1,
@@ -384,8 +403,8 @@ def test_the_estimate_for_75_accounts_calls_nothing(
     assert re.search(r"^  total +527  and up to 1 fallback lookups$", printed, re.MULTILINE)
     plan = probe.Plan(75, 90)
     assert [mills for _, _, mills in plan.components] == [750, 375, 4500, 3750]
-    assert plan.total == 9375
-    assert plan.uncounted == 7500
+    assert plan.total == 9375, "the formula is the whole estimate: no call asks for more"
+    assert "get_users_posts            75  10 posts each, no expansion" in printed
 
 
 @pytest.mark.parametrize(
@@ -596,10 +615,10 @@ def test_the_cap_is_checked_before_each_request(probe: ModuleType) -> None:
 
 def test_what_an_answer_is_billed(probe: ModuleType) -> None:
     users = load_fixture(fixture_path(FIXTURES, "get_users_by_usernames", "three_accounts"))
-    posts = load_fixture(fixture_path(FIXTURES, "get_posts_by_ids", "most_recent_three"))
-    models = probe.GetUsersByUsernamesResponse, probe.GetPostsByIdsResponse
+    posts = load_fixture(fixture_path(FIXTURES, "get_users_posts", "usda_ten"))
+    models = probe.GetUsersByUsernamesResponse, probe.GetUsersPostsResponse
     assert probe.billed(models[0].model_validate_json(users.response.body)) == 3 * 10 + 3 * 5
-    assert probe.billed(models[1].model_validate_json(posts.response.body)) == 4 * 5
+    assert probe.billed(models[1].model_validate_json(posts.response.body)) == 9 * 5
     assert probe.billed(GetPostsCountsAllResponse()) == 10
 
 

@@ -24,7 +24,8 @@ by default):
 3. ``get_posts_counts_all`` by day from the UTC midnight D days before today's, twice per
    account, ``from:<handle>`` and ``from:<handle> -is:retweet -is:reply``, paged by
    ``next_token`` at 31 days a page: three pages for 90 days.
-4. ``get_users_posts``, ten posts with ``expansions=referenced_posts``: the sample.
+4. ``get_users_posts``, the ten newest posts with ``post.fields`` and no expansion: the
+   sample, for judging relevance by eye.
 5. One ``GET /2/usage/tweets`` after the run, printed; skipped when nothing was fetched.
 
 Spend. ``--estimate``, the default, prints N, the call plan and the plan's formula at the
@@ -33,9 +34,9 @@ prices of ``docs/upstream/pages/pricing.md`` (snapshot of 2026-10-29), and calls
 ``--spend-cap USD``: it refuses before any call when the estimate exceeds the cap, and
 stops before a request whose upper bound would take the running spend past it. The running
 spend counts what each answer returns, 0.010 a user and 0.005 a post (``includes``
-too), and 0.010 a counts request, before X's same-day deduplication; the referenced posts
-of the sample are not in the formula and are counted. Estimate and actual spend are
-printed at the end, also when the run stops.
+too), and 0.010 a counts request, before X's same-day deduplication. No call asks for an
+expansion the formula leaves out, so the formula is the whole estimate. Estimate and
+actual spend are printed at the end, also when the run stops.
 
 Rate limits. ``GET /2/tweets/counts/all`` allows 300 requests per 15 minutes
 (``pages/rate-limits.md``) and a run makes 6N. The client paces at 60 a minute; X's 429
@@ -95,7 +96,6 @@ from xippios.x.models import (
     GetUsersPostsResponse,
     Granularity,
     Post,
-    PostExpansion,
     PostField,
     User,
     UserExpansion,
@@ -122,8 +122,6 @@ BATCH = 100
 """Usernames or ids per lookup, the OpenAPI document's ``maxItems``."""
 SAMPLE = 10
 """Posts in each account's sample."""
-MAX_REFERENCED = 2
-"""Posts one post can reference (a reply that quotes): the sample's uncounted bound."""
 COUNTS_WINDOW = 300
 """``GET /2/tweets/counts/all`` requests per 15 minutes per app (``pages/rate-limits.md``)."""
 MAX_WAIT = RATE_LIMIT_WINDOW
@@ -353,11 +351,6 @@ class Plan:
         """The estimate in thousandths of a USD."""
         return sum(mills for _, _, mills in self.components)
 
-    @property
-    def uncounted(self) -> int:
-        """The most the referenced posts of the samples can add, beyond the formula."""
-        return PRICE_POST * self.accounts * SAMPLE * MAX_REFERENCED
-
     def lines(self) -> list[str]:
         """The estimate as printed: N, the call plan, the formula, the time."""
         n = self.accounts
@@ -379,7 +372,7 @@ class Plan:
                 f"{self.counts}",
                 f"{n} accounts x {len(QUERIES)} queries x {self.pages} pages",
             ),
-            ("get_users_posts", f"{n}", f"{SAMPLE} posts each, referenced posts expanded"),
+            ("get_users_posts", f"{n}", f"{SAMPLE} posts each, no expansion"),
             ("GET /2/usage/tweets", "1", "after the run; the snapshot states no price"),
             ("total", f"{self.requests}", f"and up to {self.lookups} fallback lookups"),
         ]
@@ -395,9 +388,7 @@ class Plan:
         ]
         lines += [
             f"  {'total':<14} {'':<22} {usd(self.total):>8} USD",
-            f"not in the estimate: the posts the samples reference, at most {MAX_REFERENCED} a "
-            f"post at {usd(PRICE_POST)} USD, up to {usd(self.uncounted)} USD more; X bills a "
-            "resource read again the same UTC day once",
+            "X bills a resource read again the same UTC day once; counts requests every time",
             f"time: about {minutes} min of requests at {RATE_LIMIT.per_minute} a minute, and "
             f"{waits} wait(s) of up to {MAX_WAIT / 60:.0f} min for the counts window "
             f"({COUNTS_WINDOW} requests per 15 minutes)",
@@ -760,16 +751,11 @@ def _table(rows: Sequence[Row], name: str, key: Callable[[Row], str]) -> list[st
     return lines
 
 
-def _kind(post: Post) -> str:
-    kinds = [reference.type.value for reference in post.referenced_posts or []]
-    return ", ".join(kinds) if kinds else "original"
-
-
 def _sample_line(post: Post) -> str:
     metrics = post.public_metrics
     counts = f"{metrics.like_count} likes, {metrics.repost_count} reposts" if metrics else ""
     when = f"{post.created_at.astimezone(UTC):%Y-%m-%d %H:%M} UTC" if post.created_at else ""
-    head = " · ".join(part for part in (when, post.lang or "", _kind(post), counts) if part)
+    head = " · ".join(part for part in (when, post.lang or "", counts) if part)
     return f"- {head}: {' '.join((post.text or '').split())}"
 
 
@@ -999,13 +985,8 @@ class Probe:
         return day_counts(pages)
 
     async def _sample(self, user: User) -> GetUsersPostsResponse:
-        """The ten newest posts of ``user``, referenced posts expanded."""
-        params = {
-            "id": user.id,
-            "max_results": SAMPLE,
-            "post.fields": SAMPLE_FIELDS,
-            "expansions": [PostExpansion.REFERENCED_POSTS],
-        }
+        """The ten newest posts of ``user``, no expansion."""
+        params = {"id": user.id, "max_results": SAMPLE, "post.fields": SAMPLE_FIELDS}
         return await self._fetch(
             "get_users_posts",
             cache_key(user.id, params),
@@ -1015,9 +996,8 @@ class Probe:
                 user.id,
                 max_results=SAMPLE,
                 post_fields=SAMPLE_FIELDS,
-                expansions=[PostExpansion.REFERENCED_POSTS],
             ),
-            upper=SAMPLE * PRICE_POST * (1 + MAX_REFERENCED),
+            upper=SAMPLE * PRICE_POST,
         )
 
     async def _read_usage(self) -> str:
