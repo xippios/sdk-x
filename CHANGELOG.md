@@ -32,7 +32,7 @@ All notable changes to this project are documented here. The format follows
   `NotFoundError`. A 200 that carries errors is returned as the page.
 - `scripts/record_fixture.py`, the fixture recorder: it records from @XDevelopers, @USDA
   and @FAO only, prints its spend estimate first, and rewrites the text of posts and
-  profiles before the fixture is written, as the X Developer Agreement requires of
+  profiles before the fixture is written, within what the X Developer Agreement allows of
   content given to third parties; the recorded fixtures of the four wrappers.
 - `scripts/probe_accounts.py`, the account probe: it reads the operator's account list,
   prints its spend estimate and call plan without a request, and only with `--spend

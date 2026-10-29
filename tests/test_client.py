@@ -23,7 +23,7 @@ from xippios.core import (
     RetryPolicy,
     error_from_response,
 )
-from xippios.core.testing import fixture_path, load_fixture, response_from_fixture
+from xippios.core.testing import CLOCK_SLACK, fixture_path, load_fixture, response_from_fixture
 
 from xippios.x._client import (
     BILLING_CYCLE,
@@ -38,6 +38,8 @@ pytestmark = pytest.mark.anyio
 FIXTURES = Path(__file__).parent / "fixtures"
 URL = "https://api.x.com/2/users/by?usernames=USDA"
 PROBLEM = "application/problem+json"
+SLACK = CLOCK_SLACK.total_seconds()
+"""This host's clock steps back about two seconds (``CLAUDE.md`` of the workspace)."""
 
 
 def recorded(wrapper: str, case: str) -> httpx.Response:
@@ -127,7 +129,7 @@ def test_a_429_waits_until_x_rate_limit_reset() -> None:
     )
     assert isinstance(error, RateLimitError)
     assert error.retry_after is not None
-    assert 115 <= error.retry_after <= 120
+    assert 120 - SLACK <= error.retry_after <= 120 + SLACK
     assert "Rate limit exceeded" in str(error)
 
 
@@ -151,6 +153,10 @@ def test_a_rate_limit_exceeded_problem_is_a_rate_limit_at_another_status() -> No
     error = classify(answer(403, problem("rate-limit-exceeded", 403)))
     assert isinstance(error, RateLimitError)
     assert error.retry_after == RATE_LIMIT_WINDOW
+
+
+def test_a_rate_limit_exceeded_problem_at_a_5xx_falls_through_to_core() -> None:
+    assert classify(answer(503, problem("rate-limit-exceeded", 503))) is None
 
 
 def test_a_usage_cap_waits_the_billing_cycle() -> None:
@@ -179,7 +185,7 @@ async def test_retries_wait_out_a_short_reset() -> None:
     client = AsyncClient(
         dataclasses.replace(config, retry=RetryPolicy(jitter=False)), auth=auth, sleep=sleep
     )
-    reset = str(int(time.time()) - 1)
+    reset = str(int(time.time()) - 60)  # past by more than the clock's step back
     with respx.mock(assert_all_called=True) as router:
         route = router.get("https://api.x.com/2/users/by").mock(
             side_effect=[
@@ -212,7 +218,7 @@ async def test_a_reset_beyond_backoff_max_reaches_the_caller() -> None:
             await client.get_json("/users/by", params={"usernames": "USDA"})
     assert route.call_count == 1
     assert raised.value.retry_after is not None
-    assert 3590 <= raised.value.retry_after <= 3600
+    assert 3600 - SLACK <= raised.value.retry_after <= 3600 + SLACK
     assert "(HTTP 429 from GET /2/users/by)" in str(raised.value)
 
 

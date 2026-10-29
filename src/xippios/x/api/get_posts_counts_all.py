@@ -12,8 +12,8 @@ task needs them yet. Collecting the pages is the task layer's.
 
 Recorded on 2026-10-29 (``usda_by_day``, ``usda_by_day_page_2``, ``usda_originals_by_day``):
 the first page holds the 31 days up to the request, its buckets oldest first, the newest
-ending at the time of the request, and its ``next_token`` leads to the 31 days before; X
-answers ``tweet_count`` and ``total_tweet_count``, the guides' spelling
+ending shortly before the time of the request, and its ``next_token`` leads to the 31 days
+before; X answers ``tweet_count`` and ``total_tweet_count``, the guides' spelling
 (``pages/post-counts.md``), which the models read as the document's ``post_count`` and
 ``total_post_count``; ``total_tweet_count`` is the sum of the page's buckets.
 ``granularity=week`` is refused before the call; X answers it with HTTP 400

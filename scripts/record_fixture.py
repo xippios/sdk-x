@@ -19,9 +19,9 @@ nothing, and a resource read earlier in the same UTC day is not billed again. It
 through a client that never retries (``RetryPolicy(max_attempts=1)``), so a 5xx spends no
 second request.
 
-The accounts (D1, decided by Johannes on 2026-10-29). Fixtures are recorded from
-@XDevelopers, @USDA and @FAO only (``ACCOUNTS``), and the recorder refuses, before any
-request, what would read another account:
+The accounts. D1, decided by Johannes on 2026-10-29, records fixtures from @XDevelopers,
+@USDA and @FAO only (``ACCOUNTS``). The recorder's guard covers what a request names, its
+usernames, ids and query, and refuses before any request one that names another account:
 
 - ``get_users_by_usernames``: every username in ``usernames`` is one of the three, in any
   letter case. ``--unknown`` admits exactly one other, for the partial-``errors`` case; the
@@ -36,12 +36,29 @@ request, what would read another account:
 - ``get_posts_counts_all``: ``query`` names one of the three with ``from:`` and no other
   account (``from:``, ``to:``, ``retweets_of:`` or ``@``).
 
-The rewrite (D1). X's Developer Agreement, III.A (d), forbids distributing X Content to
-third parties beyond what it permits, and the Developer Policy permits Post, Direct
-Message and User IDs (``docs/upstream/terms/``). So the recorder rewrites the free text of
-a JSON response body by key, on the ``Fixture`` core's ``fixture_from_response`` returns,
-before the one write (ADR-0024, decision 4), at any depth, ``includes``, ``entities``,
-``referenced_posts`` and ``errors`` alike:
+An expansion can still bring other accounts' objects into an answer: ``referenced_posts``
+brings the posts a post reposts, quotes or replies to, whoever wrote them
+(``get_posts_by_ids/most_recent_three`` holds post 2114868620933333409, which @XDevelopers
+quoted and which is none of the three's recorded posts). The rewrite below covers their
+``text``, ``description``, ``name``, ``username`` and ``location``, and nothing else. So the
+recorder also refuses, before any request, every ``expansions``, ``user.fields`` and
+``post.fields`` value outside ``ADMITTED``: the expansions ``most_recent_post_id`` and
+``referenced_posts``, which bring posts and no users, so that the user objects of an answer
+are the requested users' only; the user fields of the probe's plan with ``id``, ``name``,
+``username`` and ``verified``; the post fields of the plan with ``id`` and ``text``. The
+values refused carry what the rewrite does not cover for other accounts, ``url``,
+``profile_image_url``, ``entities`` (whose URL entities' ``title``, ``expanded_url`` and
+``display_url`` can carry a handle), ``withheld`` and the pinned post ids among them, and
+stay refused until the rewrite covers them.
+
+The rewrite. X's Developer Agreement, III.A (d), forbids distributing X Content to third
+parties beyond what it permits, and the Developer Policy permits Post, Direct Message and
+User IDs (``docs/upstream/terms/``). D1 (Johannes, 2026-10-29) rewrites ``text``,
+``description`` and the ``name`` of persons by key; the session extended it on 2026-10-29
+to the ``username`` and ``location`` of persons. The recorder rewrites a JSON response body
+by key, on the ``Fixture`` core's ``fixture_from_response`` returns, before the one write
+(ADR-0024, decision 4), at any depth, ``includes``, ``entities``, ``referenced_posts`` and
+``errors`` alike:
 
 - every ``text`` (a post's, a ``note_tweet``'s or ``note_post``'s) becomes ``[text
   rewritten]``;
@@ -108,6 +125,33 @@ PLACEHOLDERS = {
 }
 """What D1's rewrite writes, by key; each keeps the value a string."""
 _OF_OTHER_USERS = ("username", "name", "location")
+
+ADMITTED = {
+    "expansions": frozenset({"most_recent_post_id", "referenced_posts"}),
+    "user.fields": frozenset(
+        {
+            "created_at",
+            "description",
+            "id",
+            "location",
+            "name",
+            "protected",
+            "public_metrics",
+            "url",
+            "username",
+            "verified",
+            "verified_type",
+        }
+    ),
+    "post.fields": frozenset(
+        {"conversation_id", "created_at", "id", "lang", "public_metrics", "text"}
+    ),
+}
+"""The values the recorder sends for these parameters; any other is refused (docstring).
+
+The expansions bring posts and no users, so an answer's user objects are the requested
+users' only; the field values carry nothing of other accounts the rewrite leaves.
+"""
 _POST_ID_FIELDS = (
     "most_recent_post_id",
     "most_recent_tweet_id",
@@ -254,6 +298,13 @@ def refusal(wrapper: str, params: dict[str, str], *, unknown: bool) -> str | Non
     if stray:
         taken = ", ".join(sorted(operation.params))
         return f"{wrapper} takes no {', '.join(stray)}; it takes {taken}"
+    for name, admitted in ADMITTED.items():
+        refused = [value for value in _csv(params.get(name)) if value not in admitted]
+        if refused:
+            return (
+                f"{name} {', '.join(refused)} is refused until the rewrite covers what it may "
+                f"carry of other accounts; {name} admits {', '.join(sorted(admitted))}"
+            )
     if wrapper == "get_users_by_usernames":
         others = [name for name in _csv(params.get("usernames")) if name.lower() not in _ACCOUNTS]
         if len(others) > (1 if unknown else 0):
