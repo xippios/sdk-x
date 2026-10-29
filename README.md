@@ -23,15 +23,23 @@ the OAuth 1.0a consumer key. Nothing is read from files.
 ```python
 from xippios.x import tasks
 
-# result = tasks.<task>(...)
-# result.data, result.meta.retrieved_at, result.meta.request
+users = tasks.lookup_users(["USDA", "FAO"])  # 0.010 USD a user found
+usda = next(user for user in users.data.data if user.username == "USDA")
+
+page = tasks.get_user_posts(usda.id, max_results=10)  # 0.005 USD a post returned
+for post in page.data.data or []:
+    print(post.created_at, post.public_metrics.like_count, post.text)
+print(page.meta.published_at, page.meta.retrieved_at, page.meta.request)
+
+older = tasks.get_user_posts(usda.id, pagination_token=page.data.meta.next_token)
 ```
 
-Task functions are listed in the status table below as they are added. Underneath them,
-`xippios.x.api` wraps eight X API v2 operations one page at a time (users by username,
-posts by id, a user's posts, post counts over the archive, recent search, post counts over
-the last seven days, a List's posts and a List's members), the layer the tasks will
-compose.
+Every task returns one page as X sends it, in `result.data`, and spends X credits at the
+prices of X's pricing page, which each task's docstring names; paging is the caller's, with
+the `next_token` of the previous page's `meta`. Underneath the tasks, `xippios.x.api` wraps
+nine X API v2 operations one page at a time (users by username, posts by id, a user's
+posts, post counts over the archive, recent search, post counts over the last seven days,
+a List's posts, a List's members and the project's usage).
 
 ## MCP
 
@@ -47,9 +55,11 @@ compose.
 }
 ```
 
-Tools are read-only and named `x_<verb>_<noun>`. Results are capped, at
-200 rows or 64 KB unless a tool has a cap of its own, with a note on how to see the rest.
-`--http` serves streamable HTTP instead of stdio.
+`xippios-x-mcp` serves stdio; `--http` serves streamable HTTP instead. Tools are
+read-only and named `x_<verb>_<noun>`; every call spends X credits, and each tool's
+description gives its price. Results are capped at 200 rows or 64 KB, with a note on how to
+see the rest: a page of more than about 50 posts or 40 users passes 64 KB, so the post
+tools' notes name `max_results` and the paging token.
 
 ## Status
 
@@ -61,7 +71,17 @@ exactly tasks.__all__. -->
 
 | Upstream operation | Task function | MCP tool | Status |
 | --- | --- | --- | --- |
-| (none yet) | | | |
+| `GET /2/users/by` (`getUsersByUsernames`) | `lookup_users(usernames, most_recent_post)` | `x_lookup_users` | alpha; 0.010 USD a user, 0.005 USD more with `most_recent_post` |
+| `GET /2/users/{id}/tweets` (`getUsersPosts`) | `get_user_posts(id, max_results, pagination_token, start_time, end_time)` | `x_get_user_posts` | alpha; 0.005 USD a post |
+| `GET /2/tweets/search/recent` (`searchPostsRecent`) | `search_recent_posts(query, max_results, next_token, start_time, end_time)` | `x_search_recent_posts` | alpha; 0.005 USD a post; query of 512 characters at most |
+| `GET /2/tweets/counts/all` (`getPostsCountsAll`) | `count_posts(query, granularity, start_time, end_time, next_token)` | `x_count_posts` | alpha; 0.010 USD a request; query of 1,024 characters at most |
+| `GET /2/lists/{id}/tweets` (`getListsPosts`) | `get_list_posts(id, max_results, pagination_token)` | `x_get_list_posts` | alpha; 0.005 USD a post |
+| `GET /2/tweets/search/recent` (`searchPostsRecent`, `conversation_id:`) | `get_conversation_posts(conversation_id, max_results, next_token)` | `x_get_conversation_posts` | alpha; 0.005 USD a post |
+| `GET /2/usage/tweets` (`getUsage`) | `get_usage(days)` | `x_get_usage` | alpha; no price stated |
+
+Prices are those of X's pricing page in the snapshot of 2026-10-29
+(`docs/upstream/pages/pricing.md`); a post or user read again the same UTC day is not billed
+again, a counts request always is.
 
 ## Upstream terms and attribution
 
