@@ -13,8 +13,8 @@ the family rules every source shares are in `.claude/family.md`, which the next 
 | Upstream | X API v2, https://x.com |
 | API base URL | `https://api.x.com/2` |
 | Documentation | https://docs.x.com/x-api/introduction, snapshotted in `docs/upstream/`; an OpenAPI or Swagger document a page names is kept beside it, its URL in `SPEC_URL` of `scripts/refresh_upstream.py` (`/refresh-upstream`) |
-| Credentials | `X_API_KEY` from the environment, sent as a bearer token |
-| Rate limit | 60 requests per minute, burst 1; a self-imposed pace: upstream documents no per-second or per-minute limit (ADR-0010); enforced client-side in `_client.py` <!-- name here an hourly or daily quota upstream documents, if any, and the QuotaPolicy that keeps it (ADR-0015) --> |
+| Credentials | `X_API_KEY` from the environment, sent as `Authorization: Bearer`: the app's Bearer Token, which X calls the App only Access Token (`docs/upstream/pages/application-only.md`), not the console's "API Key", the OAuth 1.0a consumer key |
+| Rate limit | 60 requests per minute, burst 1; a self-imposed pace (ADR-0010 decision 1), enforced client-side in `_client.py`. X documents no per-minute limit but per-endpoint windows of 15 minutes, per app with a Bearer Token (`docs/upstream/pages/rate-limits.md`): 300 on `GET /2/users/by` and on both counts endpoints, 3,500 on `GET /2/tweets`, 10,000 on `GET /2/users/:id/tweets`, 450 on `GET /2/tweets/search/recent`, 900 on `GET /2/lists/:id/tweets` and on `GET /2/lists/:id/members`, 50 on `GET /2/usage/tweets`; a 1/sec limit only on `GET /2/tweets/search/all` and `GET /2/spaces/by/creator_ids`, which this package does not wrap. The windows are never rationed ahead by the limiter; a spent one is answered at its 429, in `_client.py`'s `classify` alone (written in PR 3): a `RateLimitError` whose `retry_after` comes from `x-rate-limit-reset`, a Unix timestamp, with the 15-minute window as the fallback. No `QuotaPolicy`: one policy per client cannot track windows per endpoint (core gap row 318). ADR-0010 decisions 2 and 3; coordination row 304 |
 | Write tools | no, this package is read-only |
 
 The snapshot listed in `docs/upstream/FETCHED.md` is the reference for names, parameters and semantics.
@@ -41,11 +41,13 @@ src/xippios/x/
   reference/       packaged code lists (CSV/JSON) plus README with provenance
 scripts/
   refresh_reference.py   fetches the packaged lists through api/ and regenerates enums.py
-  refresh_upstream.py    captures docs/upstream/ and writes FETCHED.md (/refresh-upstream); the
-                         template's skeleton until the source fills it
+  refresh_upstream.py    captures docs/upstream/ and writes FETCHED.md (/refresh-upstream): the
+                         OpenAPI document, the docs.x.com pages in their Markdown form and
+                         the X Developer Agreement and Policy
 tests/
   conftest.py      enables xippios.core.testing.plugin, which keeps the run offline
-  fixtures/        recorded responses, <endpoint>/<case>.json, never hand-written
+  fixtures/        recorded responses, <wrapper>/<case>.json, the directory named after the
+                   wrapper function (conventions §10), never hand-written
   test_family.py   core's family check, one line: namespace levels, py.typed, __version__,
                    the adapters serving exactly the tasks, task shapes and docstrings, the
                    README status table, the template tag, the core bound
@@ -82,4 +84,82 @@ Only its `uv run pytest -m live --tb=short` step sees the key, from the org secr
 
 ## X API v2 specifics
 
-<!-- What only this package knows: upstream behaviour established by fixtures, the client's quirks, sections of its own. Fill this section or delete it. -->
+### Spend
+
+Successful responses that return data spend the app's prepaid credits; failed requests
+are not billed (`pages/usage-and-billing.md`). The prices are those of
+`docs/upstream/pages/pricing.md` (snapshot of 2026-10-29): reads per resource returned,
+0.005 USD a post and 0.010 USD a user; post counts per request, 0.005 USD on
+`GET /2/tweets/counts/recent` and 0.010 USD on `GET /2/tweets/counts/all`. A resource
+read again within the same UTC day is deduplicated (a soft guarantee, the page says); a
+counts request is not, being billed per request. Owned Reads, 0.001 USD a resource, apply
+only where `{id}` is the authenticated user who owns the app, and an app-only Bearer
+Token has no authenticated user. The pricing page states no price for
+`GET /2/usage/tweets`. Pay-per-usage plans are capped at 3 million post reads per billing
+cycle, and the Developer Console's spending limit per billing cycle is the hard stop: once
+it is reached, X blocks every request until the next cycle. Fixture recordings and live
+runs spend inside the budget line of the package's briefing, and a script that spends
+prints its estimate before its first request.
+
+### Fixtures and X content (D1)
+
+Decided by Johannes on 2026-10-29: fixtures are recorded only from @XDevelopers, @USDA
+and @FAO; the recorder rewrites `text`, `description` and the `name` of persons by key on
+the `Fixture` before the write (ADR-0024 decision 4); counts stay as sent.
+
+The terms behind it are the X Developer Agreement's definitions, in
+`docs/upstream/terms/developer-agreement.md`:
+
+> 4. “**Licensed Material**” means, individually or collectively, the X API and X
+> Content. (I.4, line 24)
+>
+> 10. “**X API**” means X Application Programming Interfaces (each, an **“API”**),
+> Software Development Kits (each, an **“SDK”**), and the related tools, documentation,
+> data, technology, code, and other materials provided by X through the Developer Site.
+> (I.10, line 30)
+>
+> 12. “**X Content**” means Posts, the unique identification number generated for each
+> Post, X end user profile information, and any other data and information made
+> available to you through the X API or by any other means authorized by X, and any
+> copies and derivative works thereof. (I.12, line 32)
+
+and its section III.A (d), by which you shall not "sell, rent, lease, sublicense,
+distribute, redistribute, syndicate, create derivative works of, assign, or otherwise
+transfer or provide access to, in whole or in part, the Licensed Material to any third
+party except as expressly permitted in this Agreement" (line 58). The X Developer
+Policy's "Content redistribution" lets X Content reach third parties only as Post IDs,
+Direct Message IDs and User IDs, "except as described below": up to 500 public Post or
+User objects a day to each person who uses the service, by non-automated means, and no
+more than 1,500,000 Post IDs to any entity within 30 days without X's written permission
+(`docs/upstream/terms/developer-policy.md`, lines 79 to 81).
+
+By I.10 the documentation is X API, and so Licensed Material, too. The snapshot under
+`docs/upstream/` is kept under ADR-0003's amendment of 2026-10-24 (Johannes, 2026-10-29):
+reproduced for reference with its attribution and URLs in `FETCHED.md`; should X object,
+a PR replaces it with a summary that keeps the names and semantics the wrappers rely on.
+
+### Live tests (D3)
+
+`.github/workflows/live.yml` runs keyless until gate P's go; after it, the nightly run
+spends one billable lookup a night.
+
+### Operator-only files
+
+`.local/` holds what only the operator keeps: the curated account list, the probe cache
+and its reports. Nothing under it is committed; the probe PR adds its line to
+`.gitignore`.
+
+### Paths, names and errors
+
+The OpenAPI document names `https://api.x.com` as its only server and writes every path
+with `/2` (`docs/upstream/openapi/openapi.json`, line 21380); `BASE_URL` already holds
+`https://api.x.com/2`, so a wrapper calls `/tweets`, never `/2/tweets`. The document
+(version 2.173) names the field parameter `post.fields` and the field `referenced_posts`
+where the guides (`pages/fields.md`) write `tweet.fields` and `referenced_tweets`, and has
+`most_recent_post_id` as a users expansion where the plan had `most_recent_tweet_id` as a
+`user.fields` value; the first recording settles which the API takes. Errors come as
+`application/problem+json` (the `Problem` schema; a keyless request on 2026-10-29 was
+answered 401 with `title`, `type`, `status` and `detail`) or as `{"errors": [{"code",
+"message"}]}`, the body the rate-limits page shows for a 429 with `code: 88`
+(`pages/rate-limits.md`, lines 412 to 418). The OpenAPI document lists no 429 response and
+no `x-rate-limit-*` header: its read operations answer 200 or `default`.

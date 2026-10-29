@@ -1,0 +1,225 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://docs.x.com/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# App only authentication and OAuth 2.0 Bearer Token
+
+> Authenticate X API requests with OAuth 2.0 App-Only Bearer Tokens for server-to-server, read-only access to public data without a user context.
+
+### App only authentication and OAuth 2.0 Bearer Token
+
+X offers applications the ability to issue authenticated requests on behalf of the application itself, as opposed to on behalf of a specific user. X's implementation is based on the [Client Credentials Grant](http://tools.ietf.org/html/rfc6749#section-4.4) flow of the [OAuth 2 specification](http://tools.ietf.org/html/rfc6749).
+
+Application-only authentication doesn't include any user-context and is a form of authentication where an application makes API requests on its own behalf. This method is for developers that just need read-only access to public information. 
+
+You can do application-only authentication using your apps consumer API keys, or by using an App only Access Token (Bearer Token). This means that the only requests you can make to a X API must not require an authenticated user.
+
+With application-only authentication, you can perform actions such as:
+
+* Pull user timelines
+* Access friends and followers of any account
+* Access lists resources
+* Search Tweets
+
+Please note that only [OAuth 1.0a](https://docs.x.com/resources/fundamentals/authentication/oauth-1-0a/api-key-and-secret.md) or [OAuth 2.0 Authorization Code Flow](https://docs.x.com/resources/fundamentals/authentication/oauth-2-0/authorization-code.md) with PKCE is required to issue requests on behalf of users. The [API reference](https://docs.x.com/resources/fundamentals/authentication/api-reference.md) page describes the authentication method required to use an API. You will need user-authentication, user-context, with an [access token](https://docs.x.com/resources/fundamentals/authentication/oauth-1-0a/obtaining-user-access-tokens.md) to perform the following:
+
+* Post Tweets or other resources
+* Search for users
+* Use any geo endpoint
+* Access Direct Messages or account credentials
+* Retrieve user's email addresses
+
+#### Auth Flow
+
+To use this method, you need to use a [App only Access Token](https://docs.x.com/resources/fundamentals/authentication/oauth-2-0/application-only.md)(also known as [Bearer Token](https://docs.x.com/resources/fundamentals/authentication/oauth-2-0/bearer-tokens.md)). You can generate an App only Access Token (Bearer Token) by passing your consumer key and secret through the [POST oauth2/token](https://docs.x.com/resources/fundamentals/authentication/api-reference.md#post-oauth2-token) endpoint. 
+
+The application-only auth flow follows these steps:
+
+* An application encodes its consumer key and secret into a specially encoded set of credentials.
+* An application makes a request to the [POST oauth2/token](https://docs.x.com/resources/fundamentals/authentication/api-reference.md#post-oauth2-token) endpoint to exchange these credentials for an [App only Access Token](https://docs.x.com/resources/fundamentals/authentication/oauth-2-0/application-only.md).
+* When accessing the REST API, the application uses the App only Access Token to authenticate.
+
+Because there is no need to sign a request, this approach is much simpler than the standard OAuth 1.0a model.
+
+![](https://mintcdn.com/x-preview/s_D1jGy1nLdDmXkd/images/auth-5.png.twimg.1920.png?fit=max\&auto=format\&n=s_D1jGy1nLdDmXkd\&q=85\&s=05a6a8658909a61eb034898279f774ba)
+
+#### About application-only auth
+
+**Tokens are passwords**
+
+Keep in mind that the consumer key & secret and the App only Access Token (Bearer Token) itself grant access to make requests on behalf of an application. These values should be considered as sensitive as passwords, and must not be shared or distributed to untrusted parties.
+
+**SSL required**
+
+All requests (both to obtain and use the tokens) *must* use HTTPS endpoints. Follow the best practices detailed in [Connecting to X API using TLS](https://docs.x.com/resources/fundamentals/authentication/guides/tls.md) — peers should **always** be verified.
+
+**No user-context**
+
+When issuing requests using application-only auth, there is no concept of a "current user". Therefore, endpoints such as [POST statuses/update](https://docs.x.com/x-api/posts/creation-of-a-post.md) will not function with application-only auth. See [using OAuth](https://docs.x.com/resources/fundamentals/authentication/oauth-1-0a/obtaining-user-access-tokens.md) for more information for issuing requests on behalf of a user.
+
+**Rate limiting**
+
+Applications have two kinds of rate limiting pools.
+
+Requests made on behalf of users with access tokens, also known as user-context, depletes from a different rate limiting context than that used in application-only authentication. So, in other words, requests made on behalf of users will not deplete from the rate limits available through app-only auth, and requests made through app-only auth will not deplete from the rate limits used in user-based auth.
+
+Read more about [API Rate Limiting](https://docs.x.com/x-api/fundamentals/rate-limits.md) and [review the limits](https://developer.x.com/en/portal/products).
+
+#### Issuing application-only requests
+
+**Step 1: Encode consumer key and secret**
+
+The steps to encode an application’s consumer key and secret into a set of credentials to obtain a Bearer Token are:
+
+1. URL encode the consumer key and consumer secret according to [RFC 1738](http://www.ietf.org/rfc/rfc1738.txt). Note that at the time of writing, this will not actually change the consumer key and secret, but this step should still be performed in case the format of those values changes in the future.
+2. Concatenate the encoded consumer key, a colon character ":", and the encoded consumer secret into a single string.
+3. [Base64 encode](http://en.wikipedia.org/wiki/Base64) the string from the previous step.
+
+Below are example values showing the result of this algorithm. Note that the consumer secret used in this page is for test purposes and will not work for real requests.
+
+| | |
+| :- | :- |
+| Consumer key | xvz1evFS4wEEPTGEFPHBog |
+| Consumer secret | L8qq9PZyRg6ieKGEKhZolGC0vJWLw8iEJ88DRdyOg |
+| RFC 1738 encoded consumer key (does not change) | xvz1evFS4wEEPTGEFPHBog |
+| RFC 1738 encoded consumer secret (does not change) | L8qq9PZyRg6ieKGEKhZolGC0vJWLw8iEJ88DRdyOg |
+| Bearer Token credentials | xvz1evFS4wEEPTGEFPHBog:L8qq9PZyRg6ieKGEKhZolGC0vJWLw8iEJ88DRdyOg |
+| Base64 encoded Bearer Token credentials | :: eHZ6MWV2RlM0d0VFUFRHRUZQSEJvZzpMOHFxOVBaeVJnNmllS0dFS2hab2xHQzB2SldMdzhpRUo4OERSZHlPZw== |
+
+**Step 2: Obtain an App only Access Token (Bearer Token)**
+
+The value calculated in step 1 must be exchanged for an App only Access Token by issuing a request to [POST oauth2/token](https://docs.x.com/resources/fundamentals/authentication/api-reference.md#post-oauth2-token):
+
+* The request must be an HTTP POST request.
+* The request must include an `Authorization` header with the value of `Basic <base64 encoded value from step 1>.`
+* The request must include a `Content-Type` header with the value of `application/x-www-form-urlencoded;charset=UTF-8.`
+* The body of the request must be `grant_type=client_credentials`.
+
+**Example request (Authorization header has been wrapped):**
+
+```json theme={null}
+POST /oauth2/token HTTP/1.1
+Host: api.x.com
+User-Agent: My X App v1.0.23
+Authorization: Basic eHZ6MWV2RlM0d0VFUFRHRUZQSEJvZzpMOHFxOVBaeVJn
+                     NmllS0dFS2hab2xHQzB2SldMdzhpRUo4OERSZHlPZw==
+Content-Type: application/x-www-form-urlencoded;charset=UTF-8
+Content-Length: 29
+Accept-Encoding: gzip
+
+grant\_type=client\_credentials
+```
+
+If the request was formatted correctly, the server would respond with a JSON-encoded payload:
+
+**Example response:**
+
+```json theme={null}
+HTTP/1.1 200 OK
+Status: 200 OK
+Content-Type: application/json; charset=utf-8
+...
+Content-Encoding: gzip
+Content-Length: 140
+
+{"token\_type":"bearer","access\_token":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA%2FAAAAAAAAAAAAAAAAAAAA%3DAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}
+```
+
+Applications should verify that the value associated with the `token_type` key of the returned object is `bearer`. The value associated with the `access_token` key is the App only Access Token (Bearer Token).
+
+Note that one App only Access Token is valid for an application at a time. Issuing another request with the same credentials to `/oauth2/token` will return the same token until it is invalidated.
+
+**Step 3: Authenticate API requests with the App only Access Token (Bearer Token)**
+
+The App only Access Token (Bearer Token) may be used to issue requests to API endpoints that support application-only auth. To use the App Access Token, construct a normal HTTPS request and include an `Authorization` header with the value of `Bearer <base64 bearer token value from step 2>. Signing is not required.`
+
+**Example request (Authorization header has been wrapped):**
+
+```
+GET /1.1/statuses/user\_timeline.json?count=100&screen\_name=twitterapi HTTP/1.1
+Host: api.x.com
+User-Agent: My X App v1.0.23
+Authorization: Bearer AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA%2FAAAAAAAAAAAA
+                      AAAAAAAA%3DAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+Accept-Encoding: gzip
+```
+
+**Invalidating an App only Access Token (Bearer Token)**
+
+Should an App only Access Token become compromised or need to be invalidated for any reason, issue a call to [POST oauth2/invalidate\_token](https://docs.x.com/resources/fundamentals/authentication/api-reference.md#post-oauth2-invalidate-token).
+
+**Example request (Authorization header has been wrapped):**
+
+```bash theme={null}
+POST /oauth2/invalidate_token HTTP/1.1
+Authorization: Basic eHZ6MWV2RlM0d0VFUFRHRUZQSEJvZzpMOHFxOVBaeVJn
+                     NmllS0dFS2hab2xHQzB2SldMdzhpRUo4OERSZHlPZw==
+User-Agent: My X App v1.0.23
+Host: api.x.com
+Accept: */*
+Content-Length: 119
+Content-Type: application/x-www-form-urlencoded
+
+access_token=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA%2FAAAAAAAAAAAAAAAAAAAA%3DAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+```
+
+**Example response:**
+
+```json theme={null}
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+Content-Length: 127
+...
+
+{"access_token":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA%2FAAAAAAAAAAAAAAAAAAAA%3DAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}
+```
+
+#### Common error cases
+
+This section describes some common mistakes involved in the negotiation and use of Bearer Tokens. Be aware that not all possible error responses are covered here - be observant of unhandled error codes and responses.
+
+**Invalid requests to obtain or revoke an App only Access Token**
+
+Attempts to:
+
+* Obtain an App only Access Token (Bearer Token) with an invalid request (for example, leaving out `grant_type=client_credentials`).
+* Obtain or revoke an App only Access Token (Bearer Token) with incorrect or expired app credentials.
+* Invalidate an incorrect or revoked App only Access Token (Bearer Token).
+* Obtain an App only Access Token (Bearer Token) too frequently in a short period of time.
+
+Will result in:
+
+```json theme={null}
+HTTP/1.1 403 Forbidden
+Content-Length: 105
+Content-Type: application/json; charset=utf-8
+...
+
+{"errors":\[{"code":99,"label":"authenticity\_token\_error","message":"Unable to verify your credentials"}\]}
+```
+
+#### API request contains invalid App only Access Token (Bearer Token)
+
+Using an incorrect or revoked Access Token to make API requests will result in:
+
+```json theme={null}
+HTTP/1.1 401 Unauthorized
+Content-Type: application/json; charset=utf-8
+Content-Length: 61
+...
+
+{"errors":\[{"message":"Invalid or expired token","code":89}\]}
+```
+
+#### App only Access Token (Bearer Token) used on endpoint which doesn't support application-only auth
+
+Requesting an endpoint which requires a user context (such as `statuses/home_timeline`) with an App only Access Token (Bearer Token) will produce:
+
+```json theme={null}
+HTTP/1.1 403 Forbidden
+Content-Type: application/json; charset=utf-8
+Content-Length: 91
+...
+
+{"errors":\[{"message":"Your credentials do not allow access to this resource","code":220}\]}
+```
