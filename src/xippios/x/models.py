@@ -4,7 +4,7 @@ Conventions §3 and ``/add-endpoint`` give the rules.
 
 The models mirror the schemas of the OpenAPI document in ``docs/upstream/openapi/
 openapi.json`` (version 2.173) under its names: ``User``, ``Post``, ``Expansions``,
-``Problem``, the four operations' responses and their parts. Every field the document
+``Problem``, the eight operations' responses and their parts. Every field the document
 gives is a field here, optional unless the document requires it (``id`` of a ``User`` and
 a ``Post`` is required too: it is the object's identifier, sent in every recorded answer).
 Times parse to ``datetime``; the document's enumerations are ``StrEnum`` (ADR-0008),
@@ -38,11 +38,18 @@ from xippios.core import UpstreamModel
 __all__ = [
     "ConnectionStatus",
     "Expansions",
+    "GetListsMembersResponse",
+    "GetListsMembersResponseMeta",
+    "GetListsPostsResponse",
+    "GetListsPostsResponseMeta",
     "GetPostsByIdsResponse",
     "GetPostsByIdsResponseMeta",
     "GetPostsCountsAllResponse",
     "GetPostsCountsAllResponseData",
     "GetPostsCountsAllResponseMeta",
+    "GetPostsCountsRecentResponse",
+    "GetPostsCountsRecentResponseData",
+    "GetPostsCountsRecentResponseMeta",
     "GetUsersByUsernamesResponse",
     "GetUsersPostsResponse",
     "GetUsersPostsResponseMeta",
@@ -61,6 +68,9 @@ __all__ = [
     "PostWithheldScope",
     "Problem",
     "ReferencedPostType",
+    "SearchPostsRecentResponse",
+    "SearchPostsRecentResponseMeta",
+    "SortOrder",
     "User",
     "UserAffiliation",
     "UserExpansion",
@@ -79,8 +89,9 @@ def _either(name: str, guides: str) -> AliasChoices:
 
 # The enumerations below are the OpenAPI document's, written by hand: the parameters'
 # enums (components.parameters UserFieldsParameter, UserExpansionsParameter,
-# PostFieldsParameter, PostExpansionsParameter, the granularity of getPostsCountsAll) and
-# the schemas' (PostReferencedPosts, UserWithheld, PostWithheld, UserConnectionStatus).
+# PostFieldsParameter, PostExpansionsParameter, the granularity of getPostsCountsAll and
+# getPostsCountsRecent, the sort_order of searchPostsRecent) and the schemas'
+# (PostReferencedPosts, UserWithheld, PostWithheld, UserConnectionStatus).
 # The adapters publish each class docstring as the schema's description, so it names the
 # upstream list and the snapshot it comes from (conventions §8, ADR-0008).
 
@@ -196,13 +207,25 @@ class PostExpansion(StrEnum):
 class Granularity(StrEnum):
     """The bucket of a post count: "minute", "hour" (upstream's default) or "day".
 
-    Values of the ``granularity`` parameter of ``getPostsCountsAll`` in X API v2's OpenAPI
+    Values of the ``granularity`` parameter of ``getPostsCountsAll`` and of
+    ``getPostsCountsRecent``, the same three with the same default, in X API v2's OpenAPI
     document, version 2.173, snapshot of 2026-10-29 (``docs/upstream/openapi/openapi.json``).
     """
 
     MINUTE = "minute"
     HOUR = "hour"
     DAY = "day"
+
+
+class SortOrder(StrEnum):
+    """The order of a recent search's Posts: "recency" or "relevancy".
+
+    Values of the ``sort_order`` parameter of ``searchPostsRecent`` in X API v2's OpenAPI
+    document, version 2.173, snapshot of 2026-10-29 (``docs/upstream/openapi/openapi.json``).
+    """
+
+    RECENCY = "recency"
+    RELEVANCY = "relevancy"
 
 
 class ReferencedPostType(StrEnum):
@@ -751,3 +774,139 @@ class GetPostsCountsAllResponse(UpstreamModel):
     data: list[GetPostsCountsAllResponseData] | None = None
     errors: list[Problem] | None = None
     meta: GetPostsCountsAllResponseMeta | None = None
+
+
+class SearchPostsRecentResponseMeta(UpstreamModel):
+    """The ``meta`` of ``SearchPostsRecentResponse``.
+
+    Attributes:
+        result_count: The number of items in ``data``.
+        newest_id: The most recent id in ``data``.
+        oldest_id: The oldest id in ``data``.
+        next_token: The ``next_token`` of the next page; absent on the last.
+        previous_token: The token of the previous page.
+    """
+
+    result_count: int | None = None
+    newest_id: str | None = None
+    oldest_id: str | None = None
+    next_token: str | None = None
+    previous_token: str | None = None
+
+
+class SearchPostsRecentResponse(UpstreamModel):
+    """``SearchPostsRecentResponse``: one page of ``searchPostsRecent``.
+
+    Attributes:
+        data: The Posts of the last seven days that match the query, on this page.
+        includes: The expanded objects.
+        errors: Problems, when X sends any beside the Posts or instead of them.
+        meta: The page's counts, ids and tokens.
+    """
+
+    data: list[Post] | None = None
+    includes: Expansions | None = None
+    errors: list[Problem] | None = None
+    meta: SearchPostsRecentResponseMeta | None = None
+
+
+class GetPostsCountsRecentResponseData(UpstreamModel):
+    """``GetPostsCountsRecentResponseData``: the Posts matching the query in one bucket.
+
+    Attributes:
+        start: The bucket's start, inclusive.
+        end: The bucket's end, exclusive.
+        post_count: Posts in the bucket; ``tweet_count`` on the wire.
+    """
+
+    start: datetime
+    end: datetime
+    post_count: int = Field(validation_alias=_either("post_count", "tweet_count"))
+
+
+class GetPostsCountsRecentResponseMeta(UpstreamModel):
+    """The ``meta`` of ``GetPostsCountsRecentResponse``.
+
+    Attributes:
+        next_token: The ``next_token`` of the next page; absent on the last.
+        total_post_count: Posts across this page's buckets; ``total_tweet_count`` on the wire.
+    """
+
+    next_token: str | None = None
+    total_post_count: int | None = Field(
+        default=None, validation_alias=_either("total_post_count", "total_tweet_count")
+    )
+
+
+class GetPostsCountsRecentResponse(UpstreamModel):
+    """``GetPostsCountsRecentResponse``: one page of ``getPostsCountsRecent``.
+
+    Attributes:
+        data: The buckets of the last seven days, oldest first.
+        errors: Problems, when X sends any beside the counts.
+        meta: The page's total and the token of the next page.
+    """
+
+    data: list[GetPostsCountsRecentResponseData] | None = None
+    errors: list[Problem] | None = None
+    meta: GetPostsCountsRecentResponseMeta | None = None
+
+
+class GetListsPostsResponseMeta(UpstreamModel):
+    """The ``meta`` of ``GetListsPostsResponse``.
+
+    Attributes:
+        result_count: The number of items in ``data``.
+        next_token: The ``pagination_token`` of the next page; absent on the last.
+        previous_token: The ``pagination_token`` of the previous page.
+    """
+
+    result_count: int | None = None
+    next_token: str | None = None
+    previous_token: str | None = None
+
+
+class GetListsPostsResponse(UpstreamModel):
+    """``GetListsPostsResponse``: one page of ``getListsPosts``.
+
+    Attributes:
+        data: The Posts of the List's members on this page.
+        includes: The expanded objects.
+        errors: Problems, e.g. the List not found, then without ``data``.
+        meta: The page's count and tokens.
+    """
+
+    data: list[Post] | None = None
+    includes: Expansions | None = None
+    errors: list[Problem] | None = None
+    meta: GetListsPostsResponseMeta | None = None
+
+
+class GetListsMembersResponseMeta(UpstreamModel):
+    """The ``meta`` of ``GetListsMembersResponse``.
+
+    Attributes:
+        result_count: The number of items in ``data``.
+        next_token: The ``pagination_token`` of the next page; absent on the last.
+        previous_token: The ``pagination_token`` of the previous page.
+    """
+
+    result_count: int | None = None
+    next_token: str | None = None
+    previous_token: str | None = None
+
+
+class GetListsMembersResponse(UpstreamModel):
+    """``GetListsMembersResponse``: one page of ``getListsMembers``.
+
+    Attributes:
+        data: The List's members on this page.
+        includes: The expanded objects, e.g. each member's most recent Post.
+        errors: Problems, e.g. the List not found, then without ``data``.
+        meta: The page's count and tokens.
+    """
+
+    data: list[User] | None = None
+    includes: Expansions | None = None
+    errors: list[Problem] | None = None
+    meta: GetListsMembersResponseMeta | None = None

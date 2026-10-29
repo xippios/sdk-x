@@ -4,8 +4,9 @@ Each helper turns one parameter into the text X takes (a list comma-separated, a
 document's ``style: form`` with ``explode: false`` has it; a time in RFC 3339 with
 ``Z``) and refuses, before any request, a value outside the bounds the document gives
 the parameter (``minItems``, ``maxItems``, ``pattern``, ``enum``, ``uniqueItems``,
-``minimum``, ``maximum``, ``minLength``, ``maxLength``), with ``InvalidRequestError``
-naming the parameter (conventions §5).
+``minimum``, ``maximum``, ``minLength``, ``maxLength``), or two parameters given where the
+document allows "at most one of" them, with ``InvalidRequestError`` naming the parameter
+(conventions §5).
 """
 
 import re
@@ -17,7 +18,7 @@ from xippios.core import InvalidRequestError
 
 from xippios.x._client import SOURCE
 
-__all__ = ["bounded", "chosen", "instant", "listed", "matching", "text"]
+__all__ = ["at_most_one", "bounded", "chosen", "instant", "listed", "matching", "text"]
 
 
 def _refuse(message: str) -> InvalidRequestError:
@@ -118,3 +119,17 @@ def instant(name: str, value: datetime) -> str:
     if moment.microsecond:
         return moment.isoformat(timespec="milliseconds").replace("+00:00", "Z")
     return moment.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def at_most_one(**given: object) -> None:
+    """Refuse two of ``given`` set where the document says "At most one of" them.
+
+    E.g. ``at_most_one(next_token=..., pagination_token=...)``: the description of
+    ``searchPostsRecent``, ``getPostsCountsRecent`` and ``getPostsCountsAll`` says "At most
+    one of ``pagination_token``, ``next_token`` may be provided".
+
+    Raises:
+        InvalidRequestError: More than one of ``given`` is not ``None``.
+    """
+    if sum(value is not None for value in given.values()) > 1:
+        raise _refuse(f"give {' or '.join(given)}, not both: at most one may be provided")
