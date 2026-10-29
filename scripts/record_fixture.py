@@ -122,8 +122,8 @@ _ID = re.compile(r"[0-9]{1,19}")
 class Operation:
     """One wrapped operation: its path relative to ``BASE_URL`` and the parameters taken.
 
-    ``params`` are the spec's names and, where the guides spell one differently, theirs
-    (``tweet.fields``): the first recording settled which the wire takes (``CLAUDE.md``).
+    ``params`` are the OpenAPI document's names, the ones the wrappers send: X takes them
+    (``post.fields``, recorded 2026-10-29; ``CLAUDE.md``, Paths, names and errors).
     """
 
     operation_id: str
@@ -135,12 +135,12 @@ WRAPPERS = {
     "get_users_by_usernames": Operation(
         "getUsersByUsernames",
         "/users/by",
-        frozenset({"usernames", "user.fields", "expansions", "post.fields", "tweet.fields"}),
+        frozenset({"usernames", "user.fields", "expansions", "post.fields"}),
     ),
     "get_posts_by_ids": Operation(
         "getPostsByIds",
         "/tweets",
-        frozenset({"ids", "post.fields", "tweet.fields", "expansions", "user.fields"}),
+        frozenset({"ids", "post.fields", "expansions", "user.fields"}),
     ),
     "get_users_posts": Operation(
         "getUsersPosts",
@@ -153,7 +153,6 @@ WRAPPERS = {
                 "start_time",
                 "end_time",
                 "post.fields",
-                "tweet.fields",
                 "expansions",
                 "user.fields",
             }
