@@ -7,13 +7,14 @@ a cap, the key in the environment through direnv::
     direnv exec ~/github/sdk uv run scripts/probe_accounts.py --spend --spend-cap 9.75
 
 The list (D4, Johannes, 2026-10-29) is a YAML list of records ``handle, name, category,
-region, lang, why, check``, bare or under the one key ``accounts``, ``check`` either
-``seen`` or ``candidate``; it names individuals, so it lives in ``.local/x-accounts.yaml``,
-which git ignores, and never in the repository. ``handle``, ``category``, ``region`` and
-``check`` are required; ``region`` ``US`` and ``EU`` are the regions D5 names. A value
-with a comma, a ``why`` most often, is quoted in a one-line record, a flow mapping, where
-an unquoted comma starts a field of its own. A list the probe refuses is named by its
-shape, an entry by its position and a field by its name, never by a value from the list.
+region, lang, why, check``, ``check`` either ``seen`` or ``candidate``; it names
+individuals, so it lives in ``.local/x-accounts.yaml``, which git ignores, and never in
+the repository. ``handle``, ``category``, ``region`` and ``check`` are required; ``region``
+``US`` and ``EU`` are the regions D5 names. The file holds the list bare or under the one
+key ``accounts``. A value with a comma, a ``why`` or a ``name``, is quoted in a one-line
+record, a flow mapping, where an unquoted comma starts a field of its own. A list the
+probe refuses is named by its shape, an entry by its position and a field by its name,
+never by a value from the list.
 
 The calls, through the package's wrappers and its one client (N accounts, ``--days`` D, 90
 by default):
@@ -363,17 +364,20 @@ def read_accounts(path: Path) -> list[Account]:
             ``.local/x-accounts.yaml``.
 
     Raises:
-        AccountsError: The file cannot be read, holds no non-empty YAML list, bare or
-            under ``accounts`` alone, or an entry is not a record of ``FIELDS`` with its
-            required fields as text, a valid handle and ``check`` ``seen`` or
-            ``candidate``, or repeats a handle. The message names the shape found, the
-            entry by its position and the field by its name, never a value: an unknown
-            field is counted, and a value an unquoted comma split is named by its field.
+        AccountsError: The file cannot be read, is not UTF-8 text or not YAML, holds no
+            non-empty YAML list, bare or under ``accounts`` alone, or an entry is not a
+            record of ``FIELDS`` with its required fields as text, a valid handle and
+            ``check`` ``seen`` or ``candidate``, or repeats a handle. The message names the
+            path, the shape found, the line YAML stopped at, the entry by its position and
+            the field by its name, never a value: an unknown field is counted, and a value
+            an unquoted comma split is named by its field.
     """
     try:
         text = path.read_text(encoding="utf-8")
     except OSError as error:
         raise AccountsError(f"cannot read the account list {path}: {error.strerror}") from None
+    except UnicodeDecodeError:
+        raise AccountsError(f"the account list {path} is not UTF-8 text") from None
     try:
         records = yaml.safe_load(text)
     except yaml.YAMLError as error:

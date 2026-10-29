@@ -610,7 +610,6 @@ def test_the_estimate_for_75_accounts_calls_nothing(
             "- {handle: '@usda', category: c, region: US, check: seen}",
             "entry 2: the handle is listed twice",
         ),
-        ("- {handle: USDA\n", "is not YAML (line 2)"),
     ],
 )
 def test_the_account_list_is_checked_before_anything_is_called(
@@ -640,6 +639,42 @@ def test_the_list_may_stand_under_the_one_key_accounts(probe: ModuleType, tmp_pa
     assert [account.handle for account in accounts] == list(HANDLES)
     assert probe.read_accounts(wrapped) == accounts
     assert probe.read_accounts(flush) == accounts
+
+
+def test_a_list_that_is_not_yaml_names_the_line_and_no_value(
+    probe: ModuleType, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """PyYAML's own message quotes the bad line; the probe's names its number only."""
+    path = tmp_path / "x-accounts.yaml"
+    path.write_text("- handle: example_one\n  why: made_up: fragment\n", encoding="utf-8")
+    with pytest.raises(probe.AccountsError) as refused:
+        probe.read_accounts(path)
+    message = str(refused.value)
+    assert message == f"the account list {path} is not YAML (line 2)"
+    assert probe.main(["--accounts", str(path)], now=NOW) == 1
+    captured = capsys.readouterr()
+    assert (captured.out, captured.err) == (f"not run: {message}\n", "")
+    for fragment in ("made_up", "fragment", "example_one", "why"):
+        assert fragment not in captured.out.replace(str(path), "")
+
+
+def test_a_list_that_is_not_utf_8_names_no_byte(
+    probe: ModuleType, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A Latin-1 file: Python's decode error names the byte and its offset; the probe's
+    names the path only."""
+    path = tmp_path / "x-accounts.yaml"
+    record = "- {handle: example_one, why: made_up caf\u00e9, check: seen}\n"
+    path.write_bytes(record.encode("latin-1"))
+    with pytest.raises(probe.AccountsError) as refused:
+        probe.read_accounts(path)
+    message = str(refused.value)
+    assert message == f"the account list {path} is not UTF-8 text"
+    assert probe.main(["--accounts", str(path)], now=NOW) == 1
+    captured = capsys.readouterr()
+    assert (captured.out, captured.err) == (f"not run: {message}\n", "")
+    for fragment in ("0xe9", "\\xe9", "\u00e9", "position", "made_up", "example_one"):
+        assert fragment not in captured.out.replace(str(path), "")
 
 
 TAKES = "it takes a non-empty YAML list of records, bare or under the one key accounts"
@@ -701,7 +736,9 @@ def test_a_why_split_by_a_comma_is_named_by_its_field_and_no_fragment_printed(
         probe.read_accounts(path)
     assert str(refused.value) == message
     assert probe.main(["--accounts", str(path)], now=NOW) == 1
-    printed = capsys.readouterr().out
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    printed = captured.out
     assert printed == f"not run: {message}\n"
     for fragment in ("made_up", "first", "second", "third", "reason", "example_"):
         assert fragment not in printed
