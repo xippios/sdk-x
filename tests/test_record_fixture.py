@@ -531,9 +531,9 @@ def test_main_records_a_lists_members_rewritten(
         "data": [
             {
                 "id": "12",
-                "username": "made_up_park",
-                "name": "Made Up Park",
-                "location": "Made Up Valley",
+                "username": "made_up_member",
+                "name": "Made Up Member",
+                "location": "Made Up Town",
                 "public_metrics": {
                     "followers_count": 3,
                     "following_count": 2,
@@ -559,7 +559,7 @@ def test_main_records_a_lists_members_rewritten(
     assert route.call_count == 1
     written = (scratch / "get_lists_members" / "made_up.json").read_text(encoding="utf-8")
     assert "Made Up" not in written
-    assert "made_up_park" not in written
+    assert "made_up_member" not in written
     (member,) = json.loads(json.loads(written)["response"]["body"])["data"]
     assert (member["username"], member["name"], member["location"]) == (
         "[username rewritten]",
