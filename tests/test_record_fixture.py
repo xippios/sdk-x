@@ -197,6 +197,18 @@ def test_the_three_accounts_ids_come_from_the_recorded_answers(recorder: ModuleT
         ("get_posts_counts_all", {"query": "to:FAO"}, False, "with from:"),
         ("get_posts_by_ids", {"ids": "1", "expansions": "author_id"}, False, "author_id is"),
         (
+            "get_posts_by_ids",
+            {"ids": "2115806101480337475", "expansions": "referenced_posts"},
+            False,
+            "referenced_posts is refused",
+        ),
+        (
+            "get_users_posts",
+            {"id": "61853389", "expansions": "referenced_posts"},
+            False,
+            "expansions admits most_recent_post_id",
+        ),
+        (
             "get_users_by_usernames",
             {"usernames": "USDA", "expansions": "pinned_post_id"},
             False,
@@ -235,6 +247,11 @@ def test_requests_beyond_the_three_accounts_are_refused(
         ("get_users_posts", {"id": "61853389", "max_results": "10"}, False),
         ("get_users_posts", {"id": "9000000000000000000"}, True),
         ("get_posts_by_ids", {"ids": "2115806101480337475,2115789000682180921"}, False),
+        (
+            "get_users_by_usernames",
+            {"usernames": "XDevelopers", "expansions": "most_recent_post_id", "user.fields": "url"},
+            False,
+        ),
         ("get_posts_counts_all", {"query": "from:USDA -is:retweet -is:reply"}, False),
     ],
 )
@@ -245,7 +262,11 @@ def test_requests_for_the_three_accounts_pass(
 
 
 def test_every_recorded_request_passes_the_guard(recorder: ModuleType) -> None:
-    """The query of each recorded fixture, read back, is one the recorder admits today."""
+    """The query of each recorded fixture, read back, is one the recorder admits today;
+    ``most_recent_post_id`` is the one expansion any of them sends (``most_recent_three``
+    re-recorded without ``referenced_posts``, Johannes, 2026-10-29)."""
+    assert recorder.ADMITTED["expansions"] == {"most_recent_post_id"}
+    expansions: set[str] = set()
     for path in sorted(FIXTURES.glob("*/*.json")):
         url = httpx.URL(load_fixture(path).request.url)
         params = dict(url.params)
@@ -253,6 +274,8 @@ def test_every_recorded_request_passes_the_guard(recorder: ModuleType) -> None:
             params["id"] = url.path.split("/")[3]
         unknown = path.stem in ("partial_errors", "unknown_id", "username_too_long")
         assert recorder.refusal(path.parent.name, params, unknown=unknown) is None, path.stem
+        expansions.update(item for item in params.get("expansions", "").split(",") if item)
+    assert expansions == {"most_recent_post_id"}
 
 
 @pytest.mark.parametrize(
@@ -264,6 +287,7 @@ def test_every_recorded_request_passes_the_guard(recorder: ModuleType) -> None:
             False,
             0.045,
         ),
+        ("get_posts_by_ids", {"ids": "1,2,3"}, False, 0.015),
         ("get_posts_by_ids", {"ids": "1,2,3", "expansions": "referenced_posts"}, False, 0.045),
         ("get_users_posts", {"id": "61853389"}, False, 0.05),
         ("get_posts_counts_all", {"query": "from:USDA"}, False, 0.01),

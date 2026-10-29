@@ -81,11 +81,16 @@ def _either(name: str, guides: str) -> AliasChoices:
 # enums (components.parameters UserFieldsParameter, UserExpansionsParameter,
 # PostFieldsParameter, PostExpansionsParameter, the granularity of getPostsCountsAll) and
 # the schemas' (PostReferencedPosts, UserWithheld, PostWithheld, UserConnectionStatus).
-# The adapters publish each class docstring as the schema's description.
+# The adapters publish each class docstring as the schema's description, so it names the
+# upstream list and the snapshot it comes from (conventions §8, ADR-0008).
 
 
 class UserField(StrEnum):
-    """A field of a User for ``user.fields``, e.g. "created_at", "public_metrics"."""
+    """A field of a User for ``user.fields``, e.g. "created_at", "public_metrics".
+
+    Values of ``UserFieldsParameter`` in X API v2's OpenAPI document, version 2.173, snapshot of
+    2026-10-29 (``docs/upstream/openapi/openapi.json``).
+    """
 
     ACTIVE_FOLLOWER_COUNT = "active_follower_count"
     CONFIRMED_EMAIL = "confirmed_email"
@@ -116,7 +121,11 @@ class UserField(StrEnum):
 
 
 class UserExpansion(StrEnum):
-    """An expansion of a User lookup, e.g. "most_recent_post_id" (the Post into includes)."""
+    """An expansion of a User lookup, e.g. "most_recent_post_id" (the Post into includes).
+
+    Values of ``UserExpansionsParameter`` in X API v2's OpenAPI document, version 2.173,
+    snapshot of 2026-10-29 (``docs/upstream/openapi/openapi.json``).
+    """
 
     AFFILIATION = "affiliation"
     MOST_RECENT_POST_ID = "most_recent_post_id"
@@ -124,7 +133,11 @@ class UserExpansion(StrEnum):
 
 
 class PostField(StrEnum):
-    """A field of a Post for ``post.fields``, e.g. "created_at", "lang", "public_metrics"."""
+    """A field of a Post for ``post.fields``, e.g. "created_at", "lang", "public_metrics".
+
+    Values of ``PostFieldsParameter`` in X API v2's OpenAPI document, version 2.173, snapshot of
+    2026-10-29 (``docs/upstream/openapi/openapi.json``).
+    """
 
     ARTICLE = "article"
     ARTICLE_TITLE = "article_title"
@@ -160,7 +173,11 @@ class PostField(StrEnum):
 
 
 class PostExpansion(StrEnum):
-    """An expansion of a Post lookup, e.g. "referenced_posts", "author_id"."""
+    """An expansion of a Post lookup, e.g. "referenced_posts", "author_id".
+
+    Values of ``PostExpansionsParameter`` in X API v2's OpenAPI document, version 2.173,
+    snapshot of 2026-10-29 (``docs/upstream/openapi/openapi.json``).
+    """
 
     ARTICLE_COVER_MEDIA = "article.cover_media"
     ARTICLE_MEDIA_ENTITIES = "article.media_entities"
@@ -177,7 +194,11 @@ class PostExpansion(StrEnum):
 
 
 class Granularity(StrEnum):
-    """The bucket of a post count: "minute", "hour" (upstream's default) or "day"."""
+    """The bucket of a post count: "minute", "hour" (upstream's default) or "day".
+
+    Values of the ``granularity`` parameter of ``getPostsCountsAll`` in X API v2's OpenAPI
+    document, version 2.173, snapshot of 2026-10-29 (``docs/upstream/openapi/openapi.json``).
+    """
 
     MINUTE = "minute"
     HOUR = "hour"
@@ -185,7 +206,11 @@ class Granularity(StrEnum):
 
 
 class ReferencedPostType(StrEnum):
-    """How a Post references another: "retweeted", "quoted" or "replied_to"."""
+    """How a Post references another: "retweeted", "quoted" or "replied_to".
+
+    Values of the ``type`` of each ``PostReferencedPosts`` item in X API v2's OpenAPI document,
+    version 2.173, snapshot of 2026-10-29 (``docs/upstream/openapi/openapi.json``).
+    """
 
     RETWEETED = "retweeted"
     QUOTED = "quoted"
@@ -193,20 +218,32 @@ class ReferencedPostType(StrEnum):
 
 
 class PostWithheldScope(StrEnum):
-    """What a Post's withholding applies to: "post" or "user"."""
+    """What a Post's withholding applies to: "post" or "user".
+
+    Values of the ``scope`` of ``PostWithheld`` in X API v2's OpenAPI document, version 2.173,
+    snapshot of 2026-10-29 (``docs/upstream/openapi/openapi.json``).
+    """
 
     POST = "post"
     USER = "user"
 
 
 class UserWithheldScope(StrEnum):
-    """What a User's withholding applies to: "user", the whole User."""
+    """What a User's withholding applies to: "user", the whole User.
+
+    Values of the ``scope`` of ``UserWithheld`` in X API v2's OpenAPI document, version 2.173,
+    snapshot of 2026-10-29 (``docs/upstream/openapi/openapi.json``).
+    """
 
     USER = "user"
 
 
 class ConnectionStatus(StrEnum):
-    """A connection between the authenticated User and a User, e.g. "following"."""
+    """A connection between the authenticated User and a User, e.g. "following".
+
+    Values of the items of ``UserConnectionStatus`` in X API v2's OpenAPI document, version
+    2.173, snapshot of 2026-10-29 (``docs/upstream/openapi/openapi.json``).
+    """
 
     BLOCKING = "blocking"
     FOLLOW_REQUEST_RECEIVED = "follow_request_received"

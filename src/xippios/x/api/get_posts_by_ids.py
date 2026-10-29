@@ -9,11 +9,13 @@ X does not find is a ``Problem`` in ``errors``, in an HTTP 200. The document's
 yet, and their objects stay as sent in ``includes``.
 
 Wire names, recorded on 2026-10-29 (``most_recent_three``): X takes the document's
-``post.fields`` and ``expansions=referenced_posts`` (HTTP 200) and answers in the
-document's names (``referenced_posts``, ``edit_history_post_ids``, ``repost_count``,
-``includes.posts``), where the guides write ``tweet.fields``, ``referenced_tweets.id`` and
-``referenced_tweets``. Price: 0.005 USD a Post returned, in ``data`` or ``includes``
-(``pages/pricing.md``).
+``post.fields`` and answers in the document's names (``edit_history_post_ids``,
+``repost_count``), where the guides write ``tweet.fields``. It took
+``expansions=referenced_posts`` too (HTTP 200) and answered ``referenced_posts`` and
+``includes.posts``, where the guides write ``referenced_tweets.id`` and
+``referenced_tweets``, in the case's first recording, replaced the same day without the
+expansion (``CLAUDE.md``, Recording fixtures). Price: 0.005 USD a Post returned, in
+``data`` or ``includes`` (``pages/pricing.md``).
 """
 
 import re
