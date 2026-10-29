@@ -20,6 +20,7 @@ from xippios.core.testing import Fixture, fixture_path, load_fixture
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "record_fixture.py"
 FIXTURES = Path(__file__).parent / "fixtures"
 ACCOUNT_IDS = {"2244994945", "61853389", "19649135"}
+LIST_ID = "715919216927322112"
 MADE_UP_KEY = "made-up-key-for-the-recorder-test"  # pragma: allowlist secret
 
 
@@ -94,6 +95,10 @@ def test_the_rewrite_covers_every_answer_with_text(recorder: ModuleType) -> None
         ("get_users_posts", "xdevelopers_ten"),
         ("get_users_posts", "usda_ten"),
         ("get_users_posts", "fao_ten"),
+        ("search_posts_recent", "usda_ten"),
+        ("search_posts_recent", "usda_ten_page_2"),
+        ("get_lists_posts", "xdevelopers_list_ten"),
+        ("get_lists_members", "xdevelopers_list_ten"),
     ]
     for case in cases:
         recorded = loaded(*case)
@@ -146,6 +151,10 @@ def test_the_rewrite_reaches_other_users_and_mentions(recorder: ModuleType) -> N
         ("get_posts_counts_all", "granularity_week"),
         ("get_users_by_usernames", "wrong_key"),
         ("get_users_posts", "unknown_id"),
+        ("get_posts_counts_recent", "usda_by_day"),
+        ("get_posts_counts_recent", "granularity_week"),
+        ("search_posts_recent", "unbalanced_parenthesis"),
+        ("get_lists_posts", "unknown_id"),
     ],
 )
 def test_counts_and_errors_stay_as_sent(recorder: ModuleType, case: tuple[str, str]) -> None:
@@ -175,6 +184,29 @@ def test_the_verify_finds_a_value_behind_a_json_escape(recorder: ModuleType) -> 
     assert recorder.survivors(rewritten, originals) == ["body.data[0].description"]
 
 
+def test_the_rewrite_reaches_every_member_of_a_list(recorder: ModuleType) -> None:
+    """A List's members are other accounts: handle, name, location and bio rewritten for
+    each, ids, times and metrics as sent."""
+    recorded = loaded("get_lists_members", "xdevelopers_list_ten")
+    fixture, made_up = unrewritten(recorded)
+    members = json.loads(recorded.response.body)["data"]
+    assert len(made_up) == 4 * len(members) == 32
+    rewritten, originals = recorder.rewrite(fixture)
+    assert {where.rsplit(".", 1)[-1] for where, _ in originals} == {
+        "username",
+        "name",
+        "location",
+        "description",
+    }
+    assert recorder.survivors(rewritten, originals) == []
+    assert json.loads(rewritten.response.body) == json.loads(recorded.response.body)
+
+
+def test_the_lists_are_owned_by_the_three_accounts(recorder: ModuleType) -> None:
+    assert recorder.LISTS == {LIST_ID: "XDevelopers"}
+    assert set(recorder.LISTS.values()) <= set(recorder.ACCOUNTS)
+
+
 def test_the_three_accounts_ids_come_from_the_recorded_answers(recorder: ModuleType) -> None:
     assert recorder.account_ids() == ACCOUNT_IDS
     posts = recorder.account_post_ids()
@@ -184,7 +216,7 @@ def test_the_three_accounts_ids_come_from_the_recorded_answers(recorder: ModuleT
 @pytest.mark.parametrize(
     ("wrapper", "params", "unknown", "refused"),
     [
-        ("search_recent", {"query": "from:USDA"}, False, "not one of the four wrappers"),
+        ("search_posts_all", {"query": "from:USDA"}, False, "not one of the eight wrappers"),
         ("get_users_by_usernames", {"usernames": "USDA", "bio": "x"}, False, "takes no bio"),
         ("get_users_by_usernames", {"usernames": "USDA,someone"}, False, "admits one other"),
         ("get_users_by_usernames", {"usernames": "USDA,someone,other"}, True, "2 were given"),
@@ -229,6 +261,40 @@ def test_the_three_accounts_ids_come_from_the_recorded_answers(recorder: ModuleT
         ("get_users_posts", {"id": "61853389", "post.fields": "lang,entities"}, False, "entities"),
         ("get_posts_by_ids", {"ids": "1", "post.fields": "note_post"}, False, "note_post is"),
         ("get_posts_by_ids", {"ids": "1", "post.fields": "withheld"}, False, "withheld is"),
+        ("search_posts_recent", {"query": "from:someone"}, False, "returns the posts it matches"),
+        ("search_posts_recent", {"query": "from:USDA OR from:someone"}, False, "posts it matches"),
+        ("search_posts_recent", {"query": "from:USDA OR lang:en"}, False, "posts it matches"),
+        ("search_posts_recent", {"query": "from:USDA wheat"}, False, "posts it matches"),
+        ("search_posts_recent", {"query": "from:USDA @someone"}, False, "posts it matches"),
+        ("search_posts_recent", {"query": "-is:retweet from:USDA"}, False, "posts it matches"),
+        ("search_posts_recent", {"query": "FROM:USDA"}, False, "posts it matches"),
+        ("search_posts_recent", {"query": "to:USDA"}, False, "posts it matches"),
+        ("search_posts_recent", {"query": ""}, False, "posts it matches"),
+        (
+            "search_posts_recent",
+            {"query": "from:USDA", "expansions": "author_id"},
+            False,
+            "author_id is refused",
+        ),
+        ("get_posts_counts_recent", {"query": "lang:en"}, False, "with from:"),
+        ("get_posts_counts_recent", {"query": "from:FAO OR from:someone"}, False, "with from:"),
+        ("get_lists_posts", {"id": "12"}, False, "not one of the Lists"),
+        ("get_lists_members", {"id": "12"}, False, "not one of the Lists"),
+        ("get_lists_posts", {"id": "list"}, True, "needs id="),
+        ("get_lists_members", {"id": LIST_ID, "user.fields": "url"}, False, "url is refused"),
+        (
+            "get_lists_members",
+            {"id": LIST_ID, "expansions": "pinned_post_id"},
+            False,
+            "pinned_post_id is refused",
+        ),
+        (
+            "get_lists_posts",
+            {"id": LIST_ID, "expansions": "referenced_posts"},
+            False,
+            "referenced_posts is refused",
+        ),
+        ("get_lists_posts", {"id": LIST_ID, "post.fields": "entities"}, False, "entities is"),
     ],
 )
 def test_requests_beyond_the_three_accounts_are_refused(
@@ -253,6 +319,19 @@ def test_requests_beyond_the_three_accounts_are_refused(
             False,
         ),
         ("get_posts_counts_all", {"query": "from:USDA -is:retweet -is:reply"}, False),
+        ("search_posts_recent", {"query": "from:usda -is:retweet -is:reply"}, False),
+        ("search_posts_recent", {"query": "from:XDevelopers -is:reply"}, False),
+        ("search_posts_recent", {"query": "(from:USDA"}, False),
+        ("search_posts_recent", {"query": "(from:FAO -is:retweet) -is:reply"}, False),
+        ("get_posts_counts_recent", {"query": "from:FAO", "granularity": "day"}, False),
+        ("get_lists_posts", {"id": LIST_ID, "max_results": "10"}, False),
+        ("get_lists_posts", {"id": "9000000000000000000"}, True),
+        (
+            "get_lists_members",
+            {"id": LIST_ID, "user.fields": "created_at,location,verified_type"},
+            False,
+        ),
+        ("get_users_posts", {"id": "61853389", "user.fields": "url"}, False),
     ],
 )
 def test_requests_for_the_three_accounts_pass(
@@ -270,7 +349,7 @@ def test_every_recorded_request_passes_the_guard(recorder: ModuleType) -> None:
     for path in sorted(FIXTURES.glob("*/*.json")):
         url = httpx.URL(load_fixture(path).request.url)
         params = dict(url.params)
-        if path.parent.name == "get_users_posts":
+        if path.parent.name in ("get_users_posts", "get_lists_posts", "get_lists_members"):
             params["id"] = url.path.split("/")[3]
         unknown = path.stem in ("partial_errors", "unknown_id", "username_too_long")
         assert recorder.refusal(path.parent.name, params, unknown=unknown) is None, path.stem
@@ -292,6 +371,19 @@ def test_every_recorded_request_passes_the_guard(recorder: ModuleType) -> None:
         ("get_users_posts", {"id": "61853389"}, False, 0.05),
         ("get_posts_counts_all", {"query": "from:USDA"}, False, 0.01),
         ("get_users_by_usernames", {"usernames": "XDevelopers"}, True, 0.0),
+        ("search_posts_recent", {"query": "from:USDA"}, False, 0.05),
+        ("search_posts_recent", {"query": "from:USDA", "max_results": "100"}, False, 0.5),
+        ("get_posts_counts_recent", {"query": "from:USDA"}, False, 0.005),
+        ("get_lists_posts", {"id": LIST_ID}, False, 0.5),
+        ("get_lists_posts", {"id": LIST_ID, "max_results": "10"}, False, 0.05),
+        ("get_lists_members", {"id": LIST_ID}, False, 1.0),
+        ("get_lists_members", {"id": LIST_ID, "max_results": "10"}, False, 0.1),
+        (
+            "get_lists_members",
+            {"id": LIST_ID, "max_results": "10", "expansions": "most_recent_post_id"},
+            False,
+            0.15,
+        ),
     ],
 )
 def test_the_estimate_is_the_snapshots_prices(
@@ -322,6 +414,14 @@ def test_an_unknown_that_exists_is_not_written(recorder: ModuleType) -> None:
     assert "belongs to an account" in recorder.unknown_answered(
         "get_users_by_usernames", with_body(fixture, body)
     )
+    assert (
+        recorder.unknown_answered("get_lists_posts", loaded("get_lists_posts", "unknown_id"))
+        is None
+    )
+    for wrapper in ("get_lists_posts", "get_lists_members"):
+        assert "names a List" in recorder.unknown_answered(
+            wrapper, loaded(wrapper, "xdevelopers_list_ten")
+        )
 
 
 @pytest.fixture
@@ -420,3 +520,62 @@ def test_main_writes_nothing_when_the_unknown_exists(
         argv = ["get_users_by_usernames", "unknown", "usernames=made_up_handle", "--unknown"]
         assert recorder.main(argv) == 1
     assert not (scratch / "get_users_by_usernames" / "unknown.json").exists()
+
+
+def test_main_records_a_lists_members_rewritten(
+    recorder: ModuleType, scratch: Path, placeholder_api_key: str
+) -> None:
+    """The List id fills the path; a member who is not one of the three loses handle, name
+    and location, keeps id and metrics."""
+    sent = {
+        "data": [
+            {
+                "id": "12",
+                "username": "made_up_park",
+                "name": "Made Up Park",
+                "location": "Made Up Valley",
+                "public_metrics": {
+                    "followers_count": 3,
+                    "following_count": 2,
+                    "tweet_count": 1,
+                    "listed_count": 0,
+                },
+            }
+        ],
+        "meta": {"result_count": 1},
+    }
+    argv = [
+        "get_lists_members",
+        "made_up",
+        f"id={LIST_ID}",
+        "max_results=1",
+        "user.fields=location,public_metrics",
+    ]
+    with respx.mock(assert_all_called=True) as router:
+        route = router.get(f"https://api.x.com/2/lists/{LIST_ID}/members").mock(
+            return_value=httpx.Response(200, json=sent)
+        )
+        assert recorder.main(argv) == 0
+    assert route.call_count == 1
+    written = (scratch / "get_lists_members" / "made_up.json").read_text(encoding="utf-8")
+    assert "Made Up" not in written
+    assert "made_up_park" not in written
+    (member,) = json.loads(json.loads(written)["response"]["body"])["data"]
+    assert (member["username"], member["name"], member["location"]) == (
+        "[username rewritten]",
+        "[name rewritten]",
+        "[location rewritten]",
+    )
+    assert (member["id"], member["public_metrics"]) == ("12", sent["data"][0]["public_metrics"])  # type: ignore[index]
+
+
+def test_main_refuses_a_search_beyond_the_three_accounts(
+    recorder: ModuleType, scratch: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with respx.mock(assert_all_called=False) as router:
+        route = router.route()
+        argv = ["search_posts_recent", "other", "query=from:USDA OR wheat"]
+        assert recorder.main(argv) == 1
+    assert route.call_count == 0
+    assert not scratch.exists()
+    assert "a search returns the posts it matches" in capsys.readouterr().out

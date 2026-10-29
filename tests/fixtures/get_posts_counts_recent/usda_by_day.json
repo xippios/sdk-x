@@ -1,0 +1,113 @@
+{
+  "recorded_at": "2026-10-29T20:22:05.820646Z",
+  "request": {
+    "body": null,
+    "body_base64": false,
+    "content_type": null,
+    "method": "GET",
+    "url": "https://api.x.com/2/tweets/counts/recent?query=from%3AUSDA&granularity=day"
+  },
+  "response": {
+    "body": "{\"data\":[{\"end\":\"2026-10-23T00:00:00.000Z\",\"start\":\"2026-10-22T20:21:54.000Z\",\"tweet_count\":0},{\"end\":\"2026-10-24T00:00:00.000Z\",\"start\":\"2026-10-23T00:00:00.000Z\",\"tweet_count\":17},{\"end\":\"2026-10-25T00:00:00.000Z\",\"start\":\"2026-10-24T00:00:00.000Z\",\"tweet_count\":4},{\"end\":\"2026-10-26T00:00:00.000Z\",\"start\":\"2026-10-25T00:00:00.000Z\",\"tweet_count\":2},{\"end\":\"2026-10-27T00:00:00.000Z\",\"start\":\"2026-10-26T00:00:00.000Z\",\"tweet_count\":7},{\"end\":\"2026-10-28T00:00:00.000Z\",\"start\":\"2026-10-27T00:00:00.000Z\",\"tweet_count\":9},{\"end\":\"2026-10-29T00:00:00.000Z\",\"start\":\"2026-10-28T00:00:00.000Z\",\"tweet_count\":9},{\"end\":\"2026-10-29T20:21:54.000Z\",\"start\":\"2026-10-29T00:00:00.000Z\",\"tweet_count\":8}],\"meta\":{\"total_tweet_count\":56}}",
+    "body_base64": false,
+    "headers": [
+      [
+        "date",
+        "Thu, 29 Oct 2026 20:22:04 GMT"
+      ],
+      [
+        "content-type",
+        "application/json; charset=utf-8"
+      ],
+      [
+        "perf",
+        "7402827104"
+      ],
+      [
+        "server",
+        "cloudflare envoy"
+      ],
+      [
+        "set-cookie",
+        "REDACTED"
+      ],
+      [
+        "set-cookie",
+        "REDACTED"
+      ],
+      [
+        "api-version",
+        "2.173"
+      ],
+      [
+        "cache-control",
+        "no-cache, no-store, max-age=0"
+      ],
+      [
+        "x-access-level",
+        "read"
+      ],
+      [
+        "x-frame-options",
+        "SAMEORIGIN"
+      ],
+      [
+        "x-transaction-id",
+        "85c0f8cffa4e6467"
+      ],
+      [
+        "x-xss-protection",
+        "0"
+      ],
+      [
+        "x-rate-limit-limit",
+        "300"
+      ],
+      [
+        "x-rate-limit-reset",
+        "1793306224"
+      ],
+      [
+        "content-disposition",
+        "attachment; filename=json.json"
+      ],
+      [
+        "x-content-type-options",
+        "nosniff"
+      ],
+      [
+        "x-rate-limit-remaining",
+        "299"
+      ],
+      [
+        "x-response-time",
+        "47"
+      ],
+      [
+        "origin-cf-ray",
+        "a524e3e4ea5e24c2-ZRH"
+      ],
+      [
+        "strict-transport-security",
+        "max-age=631138519; includeSubdomains"
+      ],
+      [
+        "x-served-by",
+        "t4_a"
+      ],
+      [
+        "cf-cache-status",
+        "DYNAMIC"
+      ],
+      [
+        "vary",
+        "accept-encoding"
+      ],
+      [
+        "cf-ray",
+        "a524e3e4ea5e24c2-ZRH"
+      ]
+    ],
+    "status": 200
+  }
+}

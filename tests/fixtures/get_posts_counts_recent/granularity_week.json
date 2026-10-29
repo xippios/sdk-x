@@ -1,0 +1,105 @@
+{
+  "recorded_at": "2026-10-29T20:22:12.520490Z",
+  "request": {
+    "body": null,
+    "body_base64": false,
+    "content_type": null,
+    "method": "GET",
+    "url": "https://api.x.com/2/tweets/counts/recent?query=from%3AUSDA&granularity=week"
+  },
+  "response": {
+    "body": "{\"detail\":\"One or more parameters to your request was invalid.\",\"errors\":[{\"message\":\"The `granularity` query parameter value [week] is not one of [minute,hour,day]\",\"parameters\":{\"granularity\":[\"week\"]}}],\"title\":\"Invalid Request\",\"type\":\"https://api.x.com/2/problems/invalid-request\"}",
+    "body_base64": false,
+    "headers": [
+      [
+        "date",
+        "Thu, 29 Oct 2026 20:22:10 GMT"
+      ],
+      [
+        "content-type",
+        "application/problem+json"
+      ],
+      [
+        "perf",
+        "7402827104"
+      ],
+      [
+        "server",
+        "cloudflare envoy"
+      ],
+      [
+        "set-cookie",
+        "REDACTED"
+      ],
+      [
+        "set-cookie",
+        "REDACTED"
+      ],
+      [
+        "cache-control",
+        "no-cache, no-store, max-age=0"
+      ],
+      [
+        "x-access-level",
+        "read"
+      ],
+      [
+        "x-frame-options",
+        "SAMEORIGIN"
+      ],
+      [
+        "x-transaction-id",
+        "306043cc841ed254"
+      ],
+      [
+        "x-xss-protection",
+        "0"
+      ],
+      [
+        "x-rate-limit-limit",
+        "300"
+      ],
+      [
+        "x-rate-limit-reset",
+        "1793306224"
+      ],
+      [
+        "content-disposition",
+        "attachment; filename=json.json"
+      ],
+      [
+        "x-content-type-options",
+        "nosniff"
+      ],
+      [
+        "x-rate-limit-remaining",
+        "298"
+      ],
+      [
+        "x-response-time",
+        "57"
+      ],
+      [
+        "origin-cf-ray",
+        "a524e40aecc2be70-ZRH"
+      ],
+      [
+        "strict-transport-security",
+        "max-age=631138519; includeSubdomains"
+      ],
+      [
+        "x-served-by",
+        "t4_a"
+      ],
+      [
+        "cf-cache-status",
+        "DYNAMIC"
+      ],
+      [
+        "cf-ray",
+        "a524e40aecc2be70-ZRH"
+      ]
+    ],
+    "status": 400
+  }
+}

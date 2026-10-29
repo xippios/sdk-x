@@ -1,8 +1,9 @@
 """``classify``: X's recorded refusals, and the answers no recording holds.
 
-The 401, the two 400s and the unknown id's 200 are recorded (``tests/fixtures/``). No 429,
-no usage cap and no 404 was recorded, since none can be provoked without spending a
-window or the budget: those tests build an ``httpx.Response`` in the shapes
+The 401, the four 400s and the unknown ids' 200s are recorded (``tests/fixtures/``): a List
+id X does not find is answered with HTTP 200 and a problem, like a user id, not with a
+404. No 429, no usage cap and no 404 was recorded, since none can be provoked without
+spending a window or the budget: those tests build an ``httpx.Response`` in the shapes
 ``pages/response-codes-and-errors.md`` and ``pages/rate-limits.md`` show. They test the
 mapping, not a fixture.
 """
@@ -78,6 +79,8 @@ def test_the_wrong_keys_401_falls_through_to_cores_auth_error() -> None:
     [
         (("get_users_by_usernames", "username_too_long"), "does not match ^[A-Za-z0-9_]{1,15}$"),
         (("get_posts_counts_all", "granularity_week"), "is not one of [minute,hour,day]"),
+        (("get_posts_counts_recent", "granularity_week"), "is not one of [minute,hour,day]"),
+        (("search_posts_recent", "unbalanced_parenthesis"), "mismatched input '<EOF>'"),
     ],
 )
 def test_a_recorded_400_is_an_invalid_request(case: tuple[str, str], words: str) -> None:
@@ -90,14 +93,25 @@ def test_a_recorded_400_is_an_invalid_request(case: tuple[str, str], words: str)
 
 
 def test_a_200_with_errors_is_the_page_not_an_error() -> None:
-    """The unknown id's answer: a resource-not-found problem and no data, in an HTTP 200."""
+    """The unknown ids' answers: a resource-not-found problem and no data, in an HTTP 200."""
     assert classify(recorded("get_users_posts", "unknown_id")) is None
+    assert classify(recorded("get_lists_posts", "unknown_id")) is None
     assert classify(recorded("get_users_by_usernames", "partial_errors")) is None
 
 
-def test_successes_are_never_errors() -> None:
-    for case in ("three_accounts", "xdevelopers_post_fields"):
-        assert classify(recorded("get_users_by_usernames", case)) is None
+@pytest.mark.parametrize(
+    "case",
+    [
+        ("get_users_by_usernames", "three_accounts"),
+        ("get_users_by_usernames", "xdevelopers_post_fields"),
+        ("search_posts_recent", "usda_ten"),
+        ("get_posts_counts_recent", "usda_by_day"),
+        ("get_lists_posts", "xdevelopers_list_ten"),
+        ("get_lists_members", "xdevelopers_list_ten"),
+    ],
+)
+def test_successes_are_never_errors(case: tuple[str, str]) -> None:
+    assert classify(recorded(*case)) is None
 
 
 def test_a_404_is_not_found() -> None:
