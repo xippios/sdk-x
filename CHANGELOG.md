@@ -61,14 +61,16 @@ All notable changes to this project are documented here. The format follows
   the last seven days) and `get_usage` (the project's post usage). Paging is the caller's,
   with the `next_token` of the previous page; `max_results` defaults to 10 and goes up to
   100, and each docstring names the price per post, user or request. `meta.published_at`
-  is the newest post's creation time where the page holds posts. A user or List id X does
-  not find, or a lookup that finds nobody, raises `NotFoundError`.
+  stays empty: X states no release time for a page, and each post carries its own creation
+  time. A user or List id X does not find, or a lookup that finds nobody, raises
+  `NotFoundError`.
 - The MCP read server `xippios-x-mcp` and the FastAPI router serve the seven tasks as the
   tools `x_lookup_users`, `x_get_user_posts`, `x_search_recent_posts`, `x_count_posts`,
   `x_get_list_posts`, `x_get_conversation_posts` and `x_get_usage` and the routes under
-  `/x/`. The tools keep the family's result cap, 200 rows or 64 KB; a page of more than
-  about 50 posts or 40 users passes it, and the cut's note names the tool's own
-  parameters.
+  `/x/`. The post tools' results are capped at 128,000 bytes and `x_lookup_users`' at
+  160,000, so a whole page of 100 posts or users comes back; the other tools keep the
+  family's 64 KB, which a month of hourly counts fits and minute counts over more than
+  about 13 hours pass. A cut's note names the tool's own parameters.
 - `api.get_usage`, the wrapper of `GET /2/usage/tweets`, with the `Usage` models and
   `UsageField`; X answers in the OpenAPI document's shape, its counts as digit strings,
   read as numbers.

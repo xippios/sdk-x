@@ -29,7 +29,7 @@ usda = next(user for user in users.data.data if user.username == "USDA")
 page = tasks.get_user_posts(usda.id, max_results=10)  # 0.005 USD a post returned
 for post in page.data.data or []:
     print(post.created_at, post.public_metrics.like_count, post.text)
-print(page.meta.published_at, page.meta.retrieved_at, page.meta.request)
+print(page.meta.retrieved_at, page.meta.request, page.data.meta.result_count)
 
 older = tasks.get_user_posts(usda.id, pagination_token=page.data.meta.next_token)
 ```
@@ -57,9 +57,10 @@ a List's posts, a List's members and the project's usage).
 
 `xippios-x-mcp` serves stdio; `--http` serves streamable HTTP instead. Tools are
 read-only and named `x_<verb>_<noun>`; every call spends X credits, and each tool's
-description gives its price. Results are capped at 200 rows or 64 KB, with a note on how to
-see the rest: a page of more than about 50 posts or 40 users passes 64 KB, so the post
-tools' notes name `max_results` and the paging token.
+description gives its price. A tool returns one page, which its result cap holds whole: up
+to 100 posts in 128,000 bytes, 100 users in 160,000, and 64 KB for the counts, which a
+month of hourly buckets fits; minute counts over more than about 13 hours are cut, with a
+note on how to see the rest.
 
 ## Status
 

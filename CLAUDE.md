@@ -40,7 +40,7 @@ src/xippios/x/
                    the bounds
   tasks.py         the seven task functions (The task layer below); __all__ is what the
                    adapters register, but BULK_TASKS (none), the Python-only ones; MCP_CAPS the
-                   per-tool result caps, notes only
+                   per-tool result caps that hold a whole page
   mcp.py           xippios-x-mcp entry point
   http.py          FastAPI router
   params.py        the packaged reference lists, read from reference/
@@ -254,7 +254,7 @@ the OpenAPI document's (posts, users, Lists), never "tweet" or "account".
 
 | Task | Wrapper | Spend per call at the snapshot's prices |
 | --- | --- | --- |
-| `lookup_users(usernames, most_recent_post=False)` | `get_users_by_usernames` | 0.010 USD a user found, up to 100 (1.00 USD); 0.005 USD more a user with `most_recent_post` (1.50 USD) |
+| `lookup_users(usernames, most_recent_post=False)` | `get_users_by_usernames` | 0.010 USD a user found, up to 100 (1.00 USD); 0.005 USD more a user with `most_recent_post`, off by default (up to 1.50 USD) |
 | `get_user_posts(id, max_results=10, pagination_token, start_time, end_time)` | `get_users_posts` | 0.005 USD a post, 5 to 100 (0.50 USD) |
 | `search_recent_posts(query, max_results=10, next_token, start_time, end_time)` | `search_posts_recent` | 0.005 USD a post, 10 to 100 (0.50 USD) |
 | `count_posts(query, granularity="day", start_time, end_time, next_token)` | `get_posts_counts_all` | 0.010 USD a request, one page of 31 days |
@@ -270,33 +270,38 @@ The rules they share, stated in the module docstring too:
   sends the post fields with it.
 - **Counts.** One task on the full archive, `GET /2/tweets/counts/all` (the session's
   choice of 2026-10-29: one counts task on the general endpoint, explicit names over
-  switches); the recent counts stay a wrapper.
+  switches; row 338 item 5); the recent counts stay a wrapper. Every granularity X takes is
+  served, minutes included.
 - **Queries.** `search_recent_posts` refuses a query over 512 characters before the call
   ("512 query length", `pages/rate-limits.md`), `count_posts` one over 1,024 ("1,024-character
-  query length (4,096 for Enterprise)", `pages/post-counts.md`); the OpenAPI document's
-  4,096 is Enterprise's, and the wrappers keep it. `get_conversation_posts` builds
+  query length (4,096 for Enterprise)", `pages/post-counts.md`; row 338 item 7); the
+  OpenAPI document's 4,096 is Enterprise's, and the wrappers keep it. `get_conversation_posts` builds
   `conversation_id:<id>` and checks the id against the document's post id pattern.
 - **Paging.** The caller's: the token parameter the operation names, given the `next_token`
   of the previous page's `meta` (`result.data.meta.next_token`).
 - **Absence.** A page without `data` whose every problem is `resource-not-found` (a user id
   or a List id X does not find, no username of a lookup found) raises `NotFoundError` with
-  X's words; a partial answer is returned as the page, its problems in `errors`; an empty
-  search is an empty page.
-- **`meta`.** `source` the slug `x`, `endpoint` the operation id, `retrieved_at` the time
+  X's words (row 338 item 4); a partial answer is returned as the page, its problems in
+  `errors`; an empty search is an empty page.
+- **`meta`.** `source` the slug `x` (row 338 item 1), `endpoint` the operation id, `retrieved_at` the time
   the answer arrived (no cache), `request` the parameters sent under the names X takes, a
   token's value `REDACTED` (row 326), `total` `None` (X counts only the page's items,
   `result_count`; ADR-0012), `vintage` `None` (X has no release identifier).
-- **`published_at`.** The newest `created_at` among the posts in `data`, a post's
-  publication time as X states it (Johannes, 2026-10-29); `None` for a page without posts
-  in `data`: users (a user's `created_at` is the account's creation, and a most recent post
-  in `includes` is not the page's data), counts, the usage and an empty search, none of
-  which has a publication time (conventions §4, ADR-0022).
-- **MCP caps.** The family's bounds, 200 rows or 64 KB, for every tool. A result is one
-  page, a model and not a list, so the byte bound cuts it whole, into a note and a
-  preview: measured on the fixtures, a post takes about 1,000 bytes of the tool's text, a
-  user about 1,400 and a count's bucket about 90, so more than about 50 posts, 40 users or
-  700 buckets pass it. `MCP_CAPS` gives the six tools whose page can pass it a note naming
-  their own parameters (ADR-0016 decision 2), and changes no bound.
+- **`published_at`.** `None` for every task: X states no release time for a page, each
+  post carries its own `created_at`, and a newest time the package computes across records
+  is no release time (ADR-0022, reading of 2026-10-29; conventions §4; row 338 item 2).
+- **MCP caps.** A result is one page, a model and not a list, so it is one row to the cap
+  (`max_rows` stays 200) and the byte bound is the one that cuts it, whole, into a note
+  and a preview that loses the `next_token`. `MCP_CAPS` sets the bytes so a page of 100
+  fits as core serialises it (compact JSON, `None` fields included; ADR-0016 decisions 2
+  and 4; row 338 item 3), measured on the fixtures: a post is about 960 bytes besides its
+  `text` of at most 280 characters, a user about 800 besides its free texts (160, 50 and
+  30 characters at most), a count bucket 77, the envelope about 600. The post tools take
+  128,000 bytes (100 x (960 + 280) + 600 = 124,600), `lookup_users` 160,000 (100 users with
+  the longest texts 104,600, room for non-ASCII text; with `most_recent_post` about 70
+  users and their posts fit), `count_posts` keeps 64 KB (744 hour buckets take 58,432;
+  minutes pass it beyond about 13 hours, 835 buckets) and `get_usage` has no entry. Each
+  note names the tool's own parameters.
 
 ### Live tests (D3)
 
