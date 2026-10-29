@@ -216,7 +216,7 @@ def test_the_three_accounts_ids_come_from_the_recorded_answers(recorder: ModuleT
 @pytest.mark.parametrize(
     ("wrapper", "params", "unknown", "refused"),
     [
-        ("search_posts_all", {"query": "from:USDA"}, False, "not one of the eight wrappers"),
+        ("search_posts_all", {"query": "from:USDA"}, False, "not one of the nine wrappers"),
         ("get_users_by_usernames", {"usernames": "USDA", "bio": "x"}, False, "takes no bio"),
         ("get_users_by_usernames", {"usernames": "USDA,someone"}, False, "admits one other"),
         ("get_users_by_usernames", {"usernames": "USDA,someone,other"}, True, "2 were given"),
@@ -270,6 +270,26 @@ def test_the_three_accounts_ids_come_from_the_recorded_answers(recorder: ModuleT
         ("search_posts_recent", {"query": "FROM:USDA"}, False, "posts it matches"),
         ("search_posts_recent", {"query": "to:USDA"}, False, "posts it matches"),
         ("search_posts_recent", {"query": ""}, False, "posts it matches"),
+        ("search_posts_recent", {"query": "conversation_id:20"}, False, "posts it matches"),
+        (
+            "search_posts_recent",
+            {"query": "conversation_id:2115806101480337475 OR from:someone"},
+            False,
+            "posts it matches",
+        ),
+        (
+            "search_posts_recent",
+            {"query": "from:USDA conversation_id:2115806101480337475"},
+            False,
+            "posts it matches",
+        ),
+        (
+            "search_posts_recent",
+            {"query": "CONVERSATION_ID:2115806101480337475"},
+            False,
+            "posts it matches",
+        ),
+        ("get_usage", {"days": "7", "user.fields": "url"}, False, "takes no user.fields"),
         (
             "search_posts_recent",
             {"query": "from:USDA", "expansions": "author_id"},
@@ -323,6 +343,14 @@ def test_requests_beyond_the_three_accounts_are_refused(
         ("search_posts_recent", {"query": "from:XDevelopers -is:reply"}, False),
         ("search_posts_recent", {"query": "(from:USDA"}, False),
         ("search_posts_recent", {"query": "(from:FAO -is:retweet) -is:reply"}, False),
+        ("search_posts_recent", {"query": "conversation_id:2115806101480337475"}, False),
+        (
+            "search_posts_recent",
+            {"query": "conversation_id:2114879022433800258", "max_results": "10"},
+            False,
+        ),
+        ("get_usage", {"days": "7"}, False),
+        ("get_usage", {"days": "1", "usage.fields": "project_usage,cap_reset_day"}, False),
         ("get_posts_counts_recent", {"query": "from:FAO", "granularity": "day"}, False),
         ("get_lists_posts", {"id": LIST_ID, "max_results": "10"}, False),
         ("get_lists_posts", {"id": "9000000000000000000"}, True),
@@ -384,6 +412,13 @@ def test_every_recorded_request_passes_the_guard(recorder: ModuleType) -> None:
             False,
             0.15,
         ),
+        (
+            "search_posts_recent",
+            {"query": "conversation_id:2115806101480337475", "max_results": "10"},
+            False,
+            0.05,
+        ),
+        ("get_usage", {"days": "7"}, False, 0.0),
     ],
 )
 def test_the_estimate_is_the_snapshots_prices(
@@ -579,3 +614,37 @@ def test_main_refuses_a_search_beyond_the_three_accounts(
     assert route.call_count == 0
     assert not scratch.exists()
     assert "a search returns the posts it matches" in capsys.readouterr().out
+
+
+def test_the_conversations_admitted_are_the_three_accounts_posts(recorder: ModuleType) -> None:
+    """A ``conversation_id:`` query is admitted for the id of a post of the three, as the
+    recorded fixtures give it, and for no other id."""
+    posts = recorder.account_post_ids()
+    assert "2115806101480337475" in posts
+    assert recorder.search_query_admitted("conversation_id:2115806101480337475")
+    assert not recorder.search_query_admitted("conversation_id:2115806101480337476")
+    assert not recorder.search_query_admitted("conversation_id:2115806101480337475 -is:reply")
+    assert not recorder.search_query_admitted("(conversation_id:2115806101480337475)")
+
+
+def test_main_records_the_usage_without_a_price(
+    recorder: ModuleType,
+    scratch: Path,
+    placeholder_api_key: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """``get_usage`` takes ``days`` and ``usage.fields``, prints that it has no price, and
+    writes the answer as sent: it holds no text to rewrite."""
+    sent = {"data": {"cap_reset_day": 1, "project_id": "1", "project_usage": "2"}}
+    argv = ["get_usage", "made_up", "days=7"]
+    with respx.mock(assert_all_called=True) as router:
+        route = router.get("https://api.x.com/2/usage/tweets").mock(
+            return_value=httpx.Response(200, json=sent)
+        )
+        assert recorder.main(argv) == 0
+    assert dict(route.calls.last.request.url.params) == {"days": "7"}
+    written = json.loads((scratch / "get_usage" / "made_up.json").read_text(encoding="utf-8"))
+    assert json.loads(written["response"]["body"]) == sent
+    out = capsys.readouterr().out
+    assert "estimate: no price" in out
+    assert "0 values rewritten" in out
