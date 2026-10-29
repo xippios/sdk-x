@@ -1,19 +1,19 @@
 {
-  "recorded_at": "2026-10-29T15:43:41.195574Z",
+  "recorded_at": "2026-10-29T16:43:54.374461Z",
   "request": {
     "body": null,
     "body_base64": false,
     "content_type": null,
     "method": "GET",
-    "url": "https://api.x.com/2/tweets?ids=2114879022433800258%2C2115806101480337475%2C2115789000682180921&post.fields=created_at%2Clang%2Cpublic_metrics%2Cconversation_id&expansions=referenced_posts"
+    "url": "https://api.x.com/2/tweets?ids=2114879022433800258%2C2115806101480337475%2C2115789000682180921&post.fields=created_at%2Clang%2Cpublic_metrics%2Cconversation_id"
   },
   "response": {
-    "body": "{\"data\":[{\"conversation_id\":\"2114879022433800258\",\"created_at\":\"2026-10-27T00:37:06.000Z\",\"edit_history_post_ids\":[\"2114879022433800258\"],\"id\":\"2114879022433800258\",\"lang\":\"en\",\"public_metrics\":{\"bookmark_count\":334,\"impression_count\":74312,\"like_count\":991,\"quote_count\":21,\"reply_count\":96,\"repost_count\":55},\"referenced_posts\":[{\"id\":\"2114868620933333409\",\"type\":\"quoted\"}],\"text\":\"[text rewritten]\"},{\"conversation_id\":\"2115806101480337475\",\"created_at\":\"2026-10-29T14:00:59.000Z\",\"edit_history_post_ids\":[\"2115805884466995409\",\"2115806101480337475\"],\"id\":\"2115806101480337475\",\"lang\":\"en\",\"public_metrics\":{\"bookmark_count\":2,\"impression_count\":4333,\"like_count\":35,\"quote_count\":2,\"reply_count\":4,\"repost_count\":7},\"text\":\"[text rewritten]\"},{\"conversation_id\":\"2115789000682180921\",\"created_at\":\"2026-10-29T12:53:01.000Z\",\"edit_history_post_ids\":[\"2115789000682180921\"],\"id\":\"2115789000682180921\",\"lang\":\"en\",\"public_metrics\":{\"bookmark_count\":0,\"impression_count\":1712,\"like_count\":6,\"quote_count\":0,\"reply_count\":1,\"repost_count\":1},\"text\":\"[text rewritten]\"}],\"includes\":{\"posts\":[{\"conversation_id\":\"2114868620933333409\",\"created_at\":\"2026-10-26T23:55:46.000Z\",\"edit_history_post_ids\":[\"2114868620933333409\"],\"id\":\"2114868620933333409\",\"lang\":\"en\",\"public_metrics\":{\"bookmark_count\":1222,\"impression_count\":356714,\"like_count\":3272,\"quote_count\":171,\"reply_count\":356,\"repost_count\":187},\"text\":\"[text rewritten]\"}]},\"meta\":{\"result_count\":3}}",
+    "body": "{\"data\":[{\"conversation_id\":\"2114879022433800258\",\"created_at\":\"2026-10-27T00:37:06.000Z\",\"edit_history_post_ids\":[\"2114879022433800258\"],\"id\":\"2114879022433800258\",\"lang\":\"en\",\"public_metrics\":{\"bookmark_count\":334,\"impression_count\":74367,\"like_count\":991,\"quote_count\":21,\"reply_count\":96,\"repost_count\":55},\"text\":\"[text rewritten]\"},{\"conversation_id\":\"2115806101480337475\",\"created_at\":\"2026-10-29T14:00:59.000Z\",\"edit_history_post_ids\":[\"2115805884466995409\",\"2115806101480337475\"],\"id\":\"2115806101480337475\",\"lang\":\"en\",\"public_metrics\":{\"bookmark_count\":4,\"impression_count\":5282,\"like_count\":38,\"quote_count\":2,\"reply_count\":5,\"repost_count\":7},\"text\":\"[text rewritten]\"},{\"conversation_id\":\"2115789000682180921\",\"created_at\":\"2026-10-29T12:53:01.000Z\",\"edit_history_post_ids\":[\"2115789000682180921\"],\"id\":\"2115789000682180921\",\"lang\":\"en\",\"public_metrics\":{\"bookmark_count\":0,\"impression_count\":1841,\"like_count\":7,\"quote_count\":0,\"reply_count\":1,\"repost_count\":1},\"text\":\"[text rewritten]\"}],\"meta\":{\"result_count\":3}}",
     "body_base64": false,
     "headers": [
       [
         "date",
-        "Thu, 29 Oct 2026 15:43:39 GMT"
+        "Thu, 29 Oct 2026 16:43:54 GMT"
       ],
       [
         "content-type",
@@ -26,14 +26,6 @@
       [
         "server",
         "cloudflare envoy"
-      ],
-      [
-        "set-cookie",
-        "REDACTED"
-      ],
-      [
-        "set-cookie",
-        "REDACTED"
       ],
       [
         "api-version",
@@ -53,7 +45,7 @@
       ],
       [
         "x-transaction-id",
-        "8275908e76ab9cc7"
+        "1bccf1358a25d08c"
       ],
       [
         "x-xss-protection",
@@ -65,7 +57,7 @@
       ],
       [
         "x-rate-limit-reset",
-        "1793289519"
+        "1793293134"
       ],
       [
         "content-disposition",
@@ -80,12 +72,20 @@
         "3499"
       ],
       [
+        "set-cookie",
+        "REDACTED"
+      ],
+      [
+        "set-cookie",
+        "REDACTED"
+      ],
+      [
         "x-response-time",
-        "82"
+        "61"
       ],
       [
         "origin-cf-ray",
-        "a5234c0c1a88bc6b-ZRH"
+        "a523a44f8d25273b-ATL"
       ],
       [
         "strict-transport-security",
@@ -96,16 +96,16 @@
         "t4_a"
       ],
       [
-        "cf-cache-status",
-        "DYNAMIC"
-      ],
-      [
         "vary",
         "accept-encoding"
       ],
       [
+        "cf-cache-status",
+        "DYNAMIC"
+      ],
+      [
         "cf-ray",
-        "a5234c0c1a88bc6b-ZRH"
+        "a523a44f8d25273b-ZRH"
       ]
     ],
     "status": 200
