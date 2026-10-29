@@ -66,5 +66,6 @@ All notable changes to this project are documented here. The format follows
 - The account probe reads its list bare or under the one key `accounts:`, and refuses any
   other shape by its type. Its list errors print no value from the list: an entry with
   unknown fields is named by its position and their count, and where an unquoted comma
-  split a value in a one-line record, by the field to quote, `why` say; `CLAUDE.md` says
-  how the list is written.
+  split a value in a one-line record, by the field to quote, `why` say; a list that is not
+  UTF-8 text is refused by its path, without a traceback. `CLAUDE.md` says how the list is
+  written.

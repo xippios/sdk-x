@@ -227,8 +227,8 @@ has not fetched, adds each run's requests and actual spend to that day's
 `.local/cache/<date>/spend.json`, and writes `.local/probe-<date>.csv` and
 `.local/probe-<date>.md`, whose Spend section gives the run's spend and the day's. The
 list is a bare YAML list of records or a mapping whose one key `accounts:` holds it, and a
-`why` with a comma is quoted, since in a one-line record, a flow mapping, an unquoted comma
-starts a field of its own.
+`why` or `name` with a comma is quoted, since in a one-line record, a flow mapping, an
+unquoted comma starts a field of its own.
 `GET /2/tweets/counts/all` allows 300 requests per 15 minutes and a run makes 6N: on X's
 429 the probe prints the wait, sleeps it, 15 minutes at most, and resumes. Only aggregates
 leave `.local/`: counts and the decision line, never a handle or a post's text. The wait
