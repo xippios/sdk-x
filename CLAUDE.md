@@ -112,8 +112,9 @@ prints its estimate before its first request.
 ### Fixtures and X content (D1)
 
 Decided by Johannes on 2026-10-29: fixtures are recorded only from @XDevelopers, @USDA
-and @FAO; the recorder rewrites `text`, `description` and the `name` of persons by key on
-the `Fixture` before the write (ADR-0024 decision 4); counts stay as sent.
+and @FAO; the recorder rewrites `text`, `description`, and the `name`, `username` and
+`location` of every user other than the recorded accounts (@XDevelopers, @USDA, @FAO), by
+key on the `Fixture` before the write (ADR-0024 decision 4); counts stay as sent.
 
 The terms behind it are the X Developer Agreement's definitions, in
 `docs/upstream/terms/developer-agreement.md`:
@@ -162,30 +163,29 @@ file. How it holds to D1 above, in full in its docstring:
   of theirs, as the recorded fixtures give them, a counts `query` naming one of them with
   `from:` and no other account. `--unknown` admits one other username or id, for an error
   case, and the answer is not written if it finds an account or posts.
-- **The expansions and fields.** An expansion can still bring other accounts' objects into
-  an answer: `referenced_posts` brings the posts a post reposts, quotes or replies to,
-  whoever wrote them (`get_posts_by_ids/most_recent_three` holds post
-  2114868620933333409, which @XDevelopers quoted and which is none of the three's recorded
-  posts; kept as recorded, the session, 2026-10-29, within D1 and the Developer Policy's
-  permission of Post IDs). The rewrite covers their `text`, `description`, `name`,
-  `username` and `location`. So the recorder refuses before the request every
-  `expansions`, `user.fields` and `post.fields` value outside its `ADMITTED`: the
-  expansions `most_recent_post_id` and `referenced_posts`, which bring no users, the plan's
-  user fields with `id`, `name`, `username` and `verified`, the plan's post fields with
-  `id` and `text`. The values refused carry what the rewrite does not cover for other
-  accounts (`url`, `profile_image_url`, `entities`, whose URL entities' `title`,
-  `expanded_url` and `display_url` can carry a handle, `withheld`, the pinned post ids)
-  and stay refused until the rewrite covers them.
-- **The rewrite**, by key at any depth: D1's `text`, `description` and `name` of persons,
-  and, the session's extension of 2026-10-29, `username` and `location`. Every `text`
-  (posts, `note_tweet`, `note_post`) becomes `[text rewritten]`, every `description`
-  `[description rewritten]`, and in every object with a `username` that is not one of the
-  three (a person, a mention) `username`, `name` and `location` become `[username
-  rewritten]`, `[name rewritten]` and `[location rewritten]`. Ids, times, metrics, `lang`, booleans, enum values and the three accounts'
-  names, handles, locations and URLs stay as sent, and so does an answer with nothing to
-  rewrite (counts, errors), byte for byte. It then verifies against the unrewritten body
-  in memory that no rewritten value survives anywhere in the fixture, refusing the write
-  by the key's path; the unrewritten body is never written.
+- **The expansions and fields.** An expansion brings other objects into an answer, and a
+  field can carry values that describe other accounts. So the recorder refuses before the
+  request every `expansions`, `user.fields` and `post.fields` value outside its
+  `ADMITTED`: the one expansion `most_recent_post_id`, which brings a post of the requested
+  user and no user object (`referenced_posts`, which brings the posts a post reposts,
+  quotes or replies to, whoever wrote them, is refused: Johannes, 2026-10-29); the plan's
+  user fields with `id`, `name`, `username` and `verified`, `url` among them, admitted for
+  the requested users, the only users an answer holds; the plan's post fields with `id`
+  and `text`. The refusals exclude the values that describe other accounts and
+  that the rewrite does not cover (`profile_image_url`, `entities`, whose URL entities'
+  `title`, `expanded_url` and `display_url` can carry a handle, `withheld`, the pinned
+  post ids), until the rewrite covers them. `get_posts_by_ids/most_recent_three` was
+  re-recorded without `referenced_posts` on 2026-10-29, and no fixture carries another
+  account's object.
+- **The rewrite**, D1's, by key at any depth: every `text` (posts, `note_tweet`,
+  `note_post`) becomes `[text rewritten]`, every `description` `[description rewritten]`,
+  and in every object with a `username` that is not one of the three (a person, a
+  mention) `username`, `name` and `location` become `[username rewritten]`, `[name
+  rewritten]` and `[location rewritten]`. Ids, times, metrics, `lang`, booleans, enum
+  values and the three accounts' names, handles, locations and URLs stay as sent, and so
+  does an answer with nothing to rewrite (counts, errors), byte for byte. It then verifies
+  against the unrewritten body in memory that no rewritten value survives anywhere in the
+  fixture, refusing the write by the key's path; the unrewritten body is never written.
 - **The spend.** It prints its estimate before the request, an upper bound at the prices
   of `pages/pricing.md` (Spend above); `--wrong-key` sends `Bearer not-a-valid-key` for
   the 401, which bills nothing. A recording session counts its calls against the budget
@@ -227,16 +227,18 @@ response and no `x-rate-limit-*` header: its read operations answer 200 or `defa
 
 Wire names, settled by the recordings of 2026-10-29: X takes the document's names
 (`post.fields`, `expansions=most_recent_post_id`, `expansions=referenced_posts`, each
-answered HTTP 200), so the wrappers send them. It answers in the document's names when the
-request carries `post.fields` (`most_recent_post_id`, `post_count` among a user's metrics,
-`includes.posts`, `edit_history_post_ids`, `repost_count`, `referenced_posts`) and in the
-guides' when it does not (`most_recent_tweet_id`, `tweet_count`, `includes.tweets`,
-`edit_history_tweet_ids`; `get_users_by_usernames/three_accounts` against
-`xdevelopers_post_fields`); the post counts, which take no `post.fields`, answer
-`tweet_count` and `total_tweet_count` (`pages/post-counts.md`) where the document has
-`post_count` and `total_post_count`. The models carry the document's names and accept the
-guides' spelling through `validation_alias` (`models.py`), so a page reads the same either
-way and `dump_upstream` writes the document's names.
+answered HTTP 200, the last in the first recording of `get_posts_by_ids/most_recent_three`,
+replaced the same day without it), so the wrappers send them. It answers in the document's
+names when the request carries `post.fields` (`most_recent_post_id`, `post_count` among a
+user's metrics, `includes.posts`, `edit_history_post_ids`, `repost_count`, and
+`referenced_posts` in that first recording) and in the guides' when it does not
+(`most_recent_tweet_id`, `tweet_count`, `includes.tweets`, `edit_history_tweet_ids`;
+`get_users_by_usernames/three_accounts` against `xdevelopers_post_fields`); the post
+counts, which take no `post.fields`, answer `tweet_count` and `total_tweet_count`
+(`pages/post-counts.md`) where the document has `post_count` and `total_post_count`. The
+models carry the document's names and accept the guides' spelling through
+`validation_alias` (`models.py`), so a page reads the same either way and `dump_upstream`
+writes the document's names.
 
 The recorded refusals add to the shapes above: the wrong key's 401 has `type:
 about:blank` and `status`, and a 400 carries both shapes, the problem and an `errors` list
