@@ -58,6 +58,7 @@ __all__ = [
     "PostReferencedPost",
     "PostScopes",
     "PostWithheld",
+    "PostWithheldScope",
     "Problem",
     "ReferencedPostType",
     "User",
@@ -67,7 +68,7 @@ __all__ = [
     "UserPublicMetrics",
     "UserSubscription",
     "UserWithheld",
-    "WithheldScope",
+    "UserWithheldScope",
 ]
 
 
@@ -79,7 +80,7 @@ def _either(name: str, guides: str) -> AliasChoices:
 # The enumerations below are the OpenAPI document's, written by hand: the parameters'
 # enums (components.parameters UserFieldsParameter, UserExpansionsParameter,
 # PostFieldsParameter, PostExpansionsParameter, the granularity of getPostsCountsAll) and
-# the schemas' (PostReferencedPosts, UserWithheld and PostWithheld, UserConnectionStatus).
+# the schemas' (PostReferencedPosts, UserWithheld, PostWithheld, UserConnectionStatus).
 # The adapters publish each class docstring as the schema's description.
 
 
@@ -191,10 +192,16 @@ class ReferencedPostType(StrEnum):
     REPLIED_TO = "replied_to"
 
 
-class WithheldScope(StrEnum):
-    """What a withholding applies to: "post" or "user"."""
+class PostWithheldScope(StrEnum):
+    """What a Post's withholding applies to: "post" or "user"."""
 
     POST = "post"
+    USER = "user"
+
+
+class UserWithheldScope(StrEnum):
+    """What a User's withholding applies to: "user", the whole User."""
+
     USER = "user"
 
 
@@ -239,7 +246,7 @@ class UserWithheld(UpstreamModel):
     """
 
     country_codes: list[str] | None = None
-    scope: WithheldScope | None = None
+    scope: UserWithheldScope | None = None
 
 
 class UserAffiliation(UpstreamModel):
@@ -432,7 +439,7 @@ class PostWithheld(UpstreamModel):
 
     copyright: bool
     country_codes: list[str]
-    scope: WithheldScope | None = None
+    scope: PostWithheldScope | None = None
 
 
 class PostNotePost(UpstreamModel):
