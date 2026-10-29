@@ -1,0 +1,113 @@
+{
+  "recorded_at": "2026-10-29T15:45:19.321644Z",
+  "request": {
+    "body": null,
+    "body_base64": false,
+    "content_type": null,
+    "method": "GET",
+    "url": "https://api.x.com/2/users/by?usernames=XDevelopers&user.fields=created_at%2Cdescription%2Clocation%2Cprotected%2Cpublic_metrics%2Cverified_type%2Curl&expansions=most_recent_post_id&post.fields=created_at%2Clang%2Cpublic_metrics%2Cconversation_id"
+  },
+  "response": {
+    "body": "{\"data\":[{\"created_at\":\"2013-12-14T04:35:55.000Z\",\"description\":\"[description rewritten]\",\"id\":\"2244994945\",\"location\":\"127.0.0.1\",\"most_recent_post_id\":\"2114879022433800258\",\"name\":\"Developers\",\"protected\":false,\"public_metrics\":{\"followers_count\":697766,\"following_count\":770,\"like_count\":2764,\"listed_count\":2983,\"media_count\":832,\"post_count\":4381},\"url\":\"https://t.co/NIwHVIVyrN\",\"username\":\"XDevelopers\",\"verified_type\":\"business\"}],\"includes\":{\"posts\":[{\"conversation_id\":\"2114879022433800258\",\"created_at\":\"2026-10-27T00:37:06.000Z\",\"edit_history_post_ids\":[\"2114879022433800258\"],\"id\":\"2114879022433800258\",\"lang\":\"en\",\"public_metrics\":{\"bookmark_count\":334,\"impression_count\":74312,\"like_count\":991,\"quote_count\":21,\"reply_count\":96,\"repost_count\":55},\"text\":\"[text rewritten]\"}]}}",
+    "body_base64": false,
+    "headers": [
+      [
+        "date",
+        "Thu, 29 Oct 2026 15:45:19 GMT"
+      ],
+      [
+        "content-type",
+        "application/json; charset=utf-8"
+      ],
+      [
+        "perf",
+        "7402827104"
+      ],
+      [
+        "server",
+        "cloudflare envoy"
+      ],
+      [
+        "api-version",
+        "2.173"
+      ],
+      [
+        "cache-control",
+        "no-cache, no-store, max-age=0"
+      ],
+      [
+        "x-access-level",
+        "read"
+      ],
+      [
+        "x-frame-options",
+        "SAMEORIGIN"
+      ],
+      [
+        "x-transaction-id",
+        "e1a189dfd0c5a2a2"
+      ],
+      [
+        "x-xss-protection",
+        "0"
+      ],
+      [
+        "x-rate-limit-limit",
+        "2000"
+      ],
+      [
+        "x-rate-limit-reset",
+        "1793289479"
+      ],
+      [
+        "content-disposition",
+        "attachment; filename=json.json"
+      ],
+      [
+        "x-content-type-options",
+        "nosniff"
+      ],
+      [
+        "x-rate-limit-remaining",
+        "1996"
+      ],
+      [
+        "set-cookie",
+        "REDACTED"
+      ],
+      [
+        "set-cookie",
+        "REDACTED"
+      ],
+      [
+        "x-response-time",
+        "52"
+      ],
+      [
+        "origin-cf-ray",
+        "a5234e7cb92d576e-ATL"
+      ],
+      [
+        "strict-transport-security",
+        "max-age=631138519; includeSubdomains"
+      ],
+      [
+        "x-served-by",
+        "t4_a"
+      ],
+      [
+        "vary",
+        "accept-encoding"
+      ],
+      [
+        "cf-cache-status",
+        "DYNAMIC"
+      ],
+      [
+        "cf-ray",
+        "a5234e7cb92d576e-ZRH"
+      ]
+    ],
+    "status": 200
+  }
+}

@@ -1,0 +1,113 @@
+{
+  "recorded_at": "2026-10-29T15:43:33.820118Z",
+  "request": {
+    "body": null,
+    "body_base64": false,
+    "content_type": null,
+    "method": "GET",
+    "url": "https://api.x.com/2/users/by?usernames=XDevelopers%2Cxippiosnouser01&user.fields=created_at%2Cdescription%2Clocation%2Cprotected%2Cpublic_metrics%2Cverified_type%2Curl"
+  },
+  "response": {
+    "body": "{\"data\":[{\"created_at\":\"2013-12-14T04:35:55.000Z\",\"description\":\"[description rewritten]\",\"id\":\"2244994945\",\"location\":\"127.0.0.1\",\"name\":\"Developers\",\"protected\":false,\"public_metrics\":{\"followers_count\":697765,\"following_count\":770,\"like_count\":2764,\"listed_count\":2983,\"media_count\":832,\"tweet_count\":4381},\"url\":\"https://t.co/NIwHVIVyrN\",\"username\":\"XDevelopers\",\"verified_type\":\"business\"}],\"errors\":[{\"detail\":\"Could not find user with usernames: [xippiosnouser01].\",\"parameter\":\"usernames\",\"resource_id\":\"xippiosnouser01\",\"resource_type\":\"user\",\"title\":\"Not Found Error\",\"type\":\"https://api.x.com/2/problems/resource-not-found\",\"value\":\"xippiosnouser01\"}]}",
+    "body_base64": false,
+    "headers": [
+      [
+        "date",
+        "Thu, 29 Oct 2026 15:43:32 GMT"
+      ],
+      [
+        "content-type",
+        "application/json; charset=utf-8"
+      ],
+      [
+        "perf",
+        "7402827104"
+      ],
+      [
+        "server",
+        "cloudflare envoy"
+      ],
+      [
+        "set-cookie",
+        "REDACTED"
+      ],
+      [
+        "set-cookie",
+        "REDACTED"
+      ],
+      [
+        "api-version",
+        "2.173"
+      ],
+      [
+        "cache-control",
+        "no-cache, no-store, max-age=0"
+      ],
+      [
+        "x-access-level",
+        "read"
+      ],
+      [
+        "x-frame-options",
+        "SAMEORIGIN"
+      ],
+      [
+        "x-transaction-id",
+        "eb3be259dc8ce856"
+      ],
+      [
+        "x-xss-protection",
+        "0"
+      ],
+      [
+        "x-rate-limit-limit",
+        "2000"
+      ],
+      [
+        "x-rate-limit-reset",
+        "1793289479"
+      ],
+      [
+        "content-disposition",
+        "attachment; filename=json.json"
+      ],
+      [
+        "x-content-type-options",
+        "nosniff"
+      ],
+      [
+        "x-rate-limit-remaining",
+        "1997"
+      ],
+      [
+        "x-response-time",
+        "54"
+      ],
+      [
+        "origin-cf-ray",
+        "a5234be26ed7142e-ZRH"
+      ],
+      [
+        "strict-transport-security",
+        "max-age=631138519; includeSubdomains"
+      ],
+      [
+        "x-served-by",
+        "t4_a"
+      ],
+      [
+        "cf-cache-status",
+        "DYNAMIC"
+      ],
+      [
+        "vary",
+        "accept-encoding"
+      ],
+      [
+        "cf-ray",
+        "a5234be26ed7142e-ZRH"
+      ]
+    ],
+    "status": 200
+  }
+}
