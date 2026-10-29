@@ -14,7 +14,7 @@ the family rules every source shares are in `.claude/family.md`, which the next 
 | API base URL | `https://api.x.com/2` |
 | Documentation | https://docs.x.com/x-api/introduction, snapshotted in `docs/upstream/`; an OpenAPI or Swagger document a page names is kept beside it, its URL in `SPEC_URL` of `scripts/refresh_upstream.py` (`/refresh-upstream`) |
 | Credentials | `X_API_KEY` from the environment, sent as `Authorization: Bearer`: the app's Bearer Token, which X calls the App only Access Token (`docs/upstream/pages/application-only.md`), not the console's "API Key", the OAuth 1.0a consumer key |
-| Rate limit | 60 requests per minute, burst 1; a self-imposed pace (ADR-0010 decision 1), enforced client-side in `_client.py`. X documents no per-minute limit but per-endpoint windows of 15 minutes, per app with a Bearer Token (`docs/upstream/pages/rate-limits.md`): 300 on `GET /2/users/by` and on both counts endpoints, 3,500 on `GET /2/tweets`, 10,000 on `GET /2/users/:id/tweets`, 450 on `GET /2/tweets/search/recent`, 900 on `GET /2/lists/:id/tweets` and on `GET /2/lists/:id/members`, 50 on `GET /2/usage/tweets`; a 1/sec limit only on `GET /2/tweets/search/all` and `GET /2/spaces/by/creator_ids`, which this package does not wrap. The windows are never rationed ahead by the limiter; a spent one is answered at its 429, in `_client.py`'s `classify` alone (written in PR 3): a `RateLimitError` whose `retry_after` comes from `x-rate-limit-reset`, a Unix timestamp, with the 15-minute window as the fallback. No `QuotaPolicy`: one policy per client cannot track windows per endpoint (core gap row 318). ADR-0010 decisions 2 and 3; coordination row 304. Observed on 2026-10-29: `x-rate-limit-limit: 2000` on `GET /2/users/by` against the page's 300, and 3,500, 10,000 and 300 on the other three wrapped operations as the page lists; the headers are the authority, the page's table the documented floor. `classify`'s whole mapping: Paths, names and errors below |
+| Rate limit | 60 requests per minute, burst 1; a self-imposed pace (ADR-0010 decision 1), enforced client-side in `_client.py`. X documents no per-minute limit but per-endpoint windows of 15 minutes, per app with a Bearer Token (`docs/upstream/pages/rate-limits.md`): 300 on `GET /2/users/by` and on both counts endpoints, 3,500 on `GET /2/tweets`, 10,000 on `GET /2/users/:id/tweets`, 450 on `GET /2/tweets/search/recent`, 900 on `GET /2/lists/:id/tweets` and on `GET /2/lists/:id/members`, 50 on `GET /2/usage/tweets`; a 1/sec limit only on `GET /2/tweets/search/all` and `GET /2/spaces/by/creator_ids`, which this package does not wrap. The windows are never rationed ahead by the limiter; a spent one is answered at its 429, in `_client.py`'s `classify` alone: a `RateLimitError` whose `retry_after` comes from `x-rate-limit-reset`, a Unix timestamp, with the 15-minute window as the fallback. No `QuotaPolicy`: one policy per client cannot track windows per endpoint (core gap row 318). ADR-0010 decisions 2 and 3; coordination row 304. Observed on 2026-10-29: `x-rate-limit-limit: 2000` on `GET /2/users/by` against the page's 300, and 3,500, 10,000 and 300 on the other three wrapped operations as the page lists; the headers are the authority, the page's table the documented floor. `classify`'s whole mapping: Paths, names and errors below |
 | Write tools | no, this package is read-only |
 
 The snapshot listed in `docs/upstream/FETCHED.md` is the reference for names, parameters and semantics.
@@ -156,17 +156,32 @@ through the package's client with `RetryPolicy(max_attempts=1)`, so a 5xx spends
 request, and writes `tests/fixtures/<wrapper>/<case>.json` once, never over an existing
 file. How it holds to D1 above, in full in its docstring:
 
-- **The accounts.** It records the four wrappers only, and refuses before the request
-  what would read an account other than the three: `usernames` among them, `id` one of
-  their ids, `ids` posts of theirs, as the recorded fixtures give them, a counts `query`
-  naming one of them with `from:` and no other account. `--unknown` admits one other
-  username or id, for an error case, and the answer is not written if it finds an account
-  or posts.
-- **The rewrite**, by key at any depth: every `text` (posts, `note_tweet`, `note_post`)
-  becomes `[text rewritten]`, every `description` `[description rewritten]`, and in every
-  object with a `username` that is not one of the three (a person, a mention) `username`,
-  `name` and `location` become `[username rewritten]`, `[name rewritten]` and `[location
-  rewritten]`. Ids, times, metrics, `lang`, booleans, enum values and the three accounts'
+- **The accounts.** It records the four wrappers only. Its guard covers what a request
+  names, its usernames, ids and query, and refuses before the request one that names an
+  account other than the three: `usernames` among them, `id` one of their ids, `ids` posts
+  of theirs, as the recorded fixtures give them, a counts `query` naming one of them with
+  `from:` and no other account. `--unknown` admits one other username or id, for an error
+  case, and the answer is not written if it finds an account or posts.
+- **The expansions and fields.** An expansion can still bring other accounts' objects into
+  an answer: `referenced_posts` brings the posts a post reposts, quotes or replies to,
+  whoever wrote them (`get_posts_by_ids/most_recent_three` holds post
+  2114868620933333409, which @XDevelopers quoted and which is none of the three's recorded
+  posts; kept as recorded, the session, 2026-10-29, within D1 and the Developer Policy's
+  permission of Post IDs). The rewrite covers their `text`, `description`, `name`,
+  `username` and `location`. So the recorder refuses before the request every
+  `expansions`, `user.fields` and `post.fields` value outside its `ADMITTED`: the
+  expansions `most_recent_post_id` and `referenced_posts`, which bring no users, the plan's
+  user fields with `id`, `name`, `username` and `verified`, the plan's post fields with
+  `id` and `text`. The values refused carry what the rewrite does not cover for other
+  accounts (`url`, `profile_image_url`, `entities`, whose URL entities' `title`,
+  `expanded_url` and `display_url` can carry a handle, `withheld`, the pinned post ids)
+  and stay refused until the rewrite covers them.
+- **The rewrite**, by key at any depth: D1's `text`, `description` and `name` of persons,
+  and, the session's extension of 2026-10-29, `username` and `location`. Every `text`
+  (posts, `note_tweet`, `note_post`) becomes `[text rewritten]`, every `description`
+  `[description rewritten]`, and in every object with a `username` that is not one of the
+  three (a person, a mention) `username`, `name` and `location` become `[username
+  rewritten]`, `[name rewritten]` and `[location rewritten]`. Ids, times, metrics, `lang`, booleans, enum values and the three accounts'
   names, handles, locations and URLs stay as sent, and so does an answer with nothing to
   rewrite (counts, errors), byte for byte. It then verifies against the unrewritten body
   in memory that no rewritten value survives anywhere in the fixture, refusing the write

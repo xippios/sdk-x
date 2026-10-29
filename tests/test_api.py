@@ -237,8 +237,8 @@ async def test_users_posts_unknown_id(replay_fixture: ReplayFixture) -> None:
 
 async def test_posts_counts_all_by_day(replay_fixture: ReplayFixture) -> None:
     """The first page: the 31 days up to the request, oldest first, the newest bucket
-    ending at the time of the request; ``tweet_count`` read as ``post_count``, the total
-    the sum of the page's buckets."""
+    ending shortly before the time of the request; ``tweet_count`` read as
+    ``post_count``, the total the sum of the page's buckets."""
     route = replay_fixture("get_posts_counts_all", "usda_by_day")
     page = await api.get_posts_counts_all(
         "from:USDA", granularity=Granularity.DAY, start_time=START
