@@ -56,7 +56,8 @@ describe other accounts. So the recorder also refuses, before any request, every
   and no user object. ``referenced_posts`` is refused (Johannes, 2026-10-29): it brings the
   posts a post reposts, quotes or replies to, whoever wrote them.
   ``get_posts_by_ids/most_recent_three`` was re-recorded without it on 2026-10-29, and no
-  fixture carries another account's object.
+  fixture carries another account's object but the two List fixtures, whose members and
+  posts are other accounts' by nature (row 330, item 10).
 - ``user.fields``: the probe's plan with ``id``, ``name``, ``username`` and ``verified``.
   ``url`` is among them, the requested users' own: the user objects of an answer are the
   requested users' only. ``get_lists_members`` is the exception (``NOT_ADMITTED_FOR``):
@@ -179,8 +180,10 @@ ADMITTED = {
 """The values the recorder sends for these parameters; any other is refused (docstring).
 
 The one expansion brings a post of the requested user and no user object, so an answer's
-objects are the requested users' and their posts only (Johannes, 2026-10-29); the field
-values carry nothing of other accounts the rewrite leaves.
+objects are the requested users' and their posts only (Johannes, 2026-10-29), except in
+the List wrappers' answers, whose posts and users are the List's members', other accounts:
+there ``NOT_ADMITTED_FOR`` refuses ``url`` for ``get_lists_members``, and the field values
+admitted carry nothing of other accounts the rewrite leaves.
 """
 NOT_ADMITTED_FOR = {"get_lists_members": {"user.fields": frozenset({"url"})}}
 """Values of ``ADMITTED`` a wrapper refuses: a List's members are other accounts, and a

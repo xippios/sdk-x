@@ -187,15 +187,15 @@ file. How it holds to D1 above, in full in its docstring:
   user and no user object (`referenced_posts`, which brings the posts a post reposts,
   quotes or replies to, whoever wrote them, is refused: Johannes, 2026-10-29); the plan's
   user fields with `id`, `name`, `username` and `verified`, `url` among them, admitted for
-  the requested users, the only users an answer holds, but by `get_lists_members`
-  (`NOT_ADMITTED_FOR`), whose users are the List's members, other accounts, whose `url`
-  the rewrite does not cover; the plan's post fields with `id` and `text`. The refusals
-  exclude the values that describe other accounts and
+  the requested users, the only users an answer holds except in `get_lists_members`'
+  answer, whose users are the List's members, other accounts, whose `url` the rewrite does
+  not cover, so that wrapper refuses `url` (`NOT_ADMITTED_FOR`); the plan's post fields
+  with `id` and `text`. The refusals exclude the values that describe other accounts and
   that the rewrite does not cover (`profile_image_url`, `entities`, whose URL entities'
   `title`, `expanded_url` and `display_url` can carry a handle, `withheld`, the pinned
   post ids), until the rewrite covers them. `get_posts_by_ids/most_recent_three` was
   re-recorded without `referenced_posts` on 2026-10-29, and no fixture carries another
-  account's object.
+  account's object but the two List fixtures (The List below).
 - **The rewrite**, D1's, by key at any depth: every `text` (posts, `note_tweet`,
   `note_post`) becomes `[text rewritten]`, every `description` `[description rewritten]`,
   and in every object with a `username` that is not one of the three (a person, a
@@ -211,14 +211,21 @@ file. How it holds to D1 above, in full in its docstring:
   line of its briefing.
 
 The List. The List fixtures come from one List owned by @XDevelopers, id
-`715919216927322112` (`LISTS` in the recorder), its eight members 4 `government` and 4
-unverified accounts at recording. It was found on 2026-10-29 with one
+`715919216927322112` (`LISTS` in the recorder), whose name suggested institutional
+accounts; of its eight members, four have `verified_type: government` and four
+`verified_type: none` at recording. It was found on 2026-10-29 with one
 `GET /2/users/2244994945/owned_lists?max_results=5&list.fields=name,member_count,private`,
 @XDevelopers being the first of the three accounts read, which returned three public Lists;
-`owned_lists` is not wrapped, and that answer is not kept.
+`owned_lists` is not wrapped, and that answer is not kept. A List's members and posts are
+other accounts' objects by nature: Johannes decided on 2026-10-29 that
+`get_lists_members/xdevelopers_list_ten` stays as recorded within D1 (an institutional
+List, every free text rewritten, ids, creation dates and public metrics as sent), and the
+session applies the same to `get_lists_posts/xdevelopers_list_ten` (row 330, item 10).
 
 Every fixture carries X's `x-transaction-id` response header, a request id of 16 hex
-digits that detect-secrets flags; each has an audited `.secrets.baseline` entry (`is_secret:
+digits. detect-secrets flags it in every fixture but
+`search_posts_recent/unbalanced_parenthesis`, whose id's entropy is exactly 3.0, the
+detector's limit; each flagged one has an audited `.secrets.baseline` entry (`is_secret:
 false`; row 124). Core's scrub writes `next_token=REDACTED` and `pagination_token=REDACTED`
 in a recorded URL, since its credential rule takes `token` as a whole word, and
 `sent_query` reads them the same way, so a test cannot match on them; the tokens in `meta`

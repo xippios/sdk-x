@@ -10,14 +10,14 @@ when omitted); the answer ``GetPostsCountsRecentResponse``: ``data`` (``start``,
 ``since_id``, ``until_id`` and ``search_count.fields`` are not wrapped, as for
 ``getPostsCountsAll``: no task needs them yet. Collecting the pages is the task layer's.
 
-Recorded on 2026-10-29 (``usda_by_day``): eight buckets by day, oldest first, the first
-starting seven days before the request and the last ending at it, so both are partial
-days; no ``next_token``; X answers ``tweet_count`` and ``total_tweet_count``, which the
-models read as the document's ``post_count`` and ``total_post_count``, the total the sum
-of the buckets. ``granularity=week`` is refused before the call; X answers it with HTTP
-400 (``granularity_week``). Price: 0.005 USD a request, every request, since counts are not
-deduplicated (``pages/pricing.md``); X reported ``x-rate-limit-limit: 300``, as
-``pages/rate-limits.md`` lists.
+Recorded on 2026-10-29 (``usda_by_day``): eight buckets by day, oldest first, the last
+ending shortly before the time of the request and the first starting seven days before
+that end, so both are partial days; no ``next_token``; X answers ``tweet_count`` and
+``total_tweet_count``, which the models read as the document's ``post_count`` and
+``total_post_count``, the total the sum of the buckets. ``granularity=week`` is refused
+before the call; X answers it with HTTP 400 (``granularity_week``). Price: 0.005 USD a
+request, every request, since counts are not deduplicated (``pages/pricing.md``); X
+reported ``x-rate-limit-limit: 300``, as ``pages/rate-limits.md`` lists.
 """
 
 from datetime import datetime
