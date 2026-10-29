@@ -31,9 +31,10 @@ All notable changes to this project are documented here. The format follows
   `RateLimitError` until the next billing cycle, a 400 to `InvalidRequestError`, a 404 to
   `NotFoundError`. A 200 that carries errors is returned as the page.
 - `scripts/record_fixture.py`, the fixture recorder: it records from @XDevelopers, @USDA
-  and @FAO only, prints its spend estimate first, and rewrites the text of posts and
-  profiles before the fixture is written, within what the X Developer Agreement allows of
-  content given to third parties; the recorded fixtures of the four wrappers.
+  and @FAO only, prints its spend estimate first, and rewrites `text`, `description`, and
+  the `name`, `username` and `location` of every user other than those three accounts
+  before the fixture is written, counts as sent, within what the X Developer Agreement
+  allows of content given to third parties; the recorded fixtures of the four wrappers.
 - `scripts/probe_accounts.py`, the account probe: it reads the operator's account list,
   prints its spend estimate and call plan without a request, and only with `--spend
   --spend-cap` looks the accounts up, counts their posts and original posts by day over
@@ -53,3 +54,12 @@ All notable changes to this project are documented here. The format follows
   the probe, and the nightly run keyless until the probe's go.
 - README: the Bearer Token in the key sentence, and the X Developer Agreement and
   Developer Policy as the terms data comes under.
+- The fixture `get_posts_by_ids/most_recent_three` is recorded again for the same three
+  posts without the `referenced_posts` expansion: it holds the three accounts' posts only,
+  and no fixture carries a post or profile of another account. The recorder admits one
+  expansion, `most_recent_post_id`, which brings a post of the requested user and no
+  profile; the wrappers keep every expansion the OpenAPI document lists.
+- The hand-written enums (`UserField`, `PostField`, `UserExpansion`, `PostExpansion`,
+  `Granularity` and the schemas' value lists) name in their docstrings, which an MCP
+  tool's input schema shows, the OpenAPI document's list they come from, its version and
+  the snapshot's date.

@@ -30,9 +30,7 @@ from xippios.x.models import (
     GetUsersByUsernamesResponse,
     GetUsersPostsResponse,
     Granularity,
-    PostExpansion,
     PostField,
-    ReferencedPostType,
     UserExpansion,
     UserField,
 )
@@ -166,26 +164,25 @@ async def test_users_by_usernames_refuses_a_long_username(replay_fixture: Replay
 
 
 async def test_posts_by_ids(replay_fixture: ReplayFixture) -> None:
-    """With ``post.fields`` X answers ``referenced_posts`` and ``includes.posts``."""
+    """With ``post.fields`` and no expansion X answers the three Posts alone, in the
+    document's names (``edit_history_post_ids``, ``repost_count``), and no ``includes``."""
     route = replay_fixture("get_posts_by_ids", "most_recent_three")
     ids = ["2114879022433800258", "2115806101480337475", "2115789000682180921"]
-    page = await api.get_posts_by_ids(
-        ids, post_fields=PLAN_POST_FIELDS, expansions=[PostExpansion.REFERENCED_POSTS]
-    )
+    page = await api.get_posts_by_ids(ids, post_fields=PLAN_POST_FIELDS)
     assert sent_query(route) == recorded("get_posts_by_ids", "most_recent_three")
+    assert "expansions" not in sent_query(route)
     assert page.data is not None
     assert [post.id for post in page.data] == ids
     first = page.data[0]
     assert first.created_at == datetime(2026, 10, 27, 0, 37, 6, tzinfo=UTC)
     assert first.conversation_id == first.id
-    assert first.referenced_posts is not None
-    (reference,) = first.referenced_posts
-    assert reference.type is ReferencedPostType.QUOTED
-    assert page.includes is not None
-    assert page.includes.posts is not None
-    assert [post.id for post in page.includes.posts] == [reference.id]
+    assert all(post.referenced_posts is None for post in page.data)
+    assert page.includes is None
+    assert page.errors is None
     assert page.data[1].edit_history_post_ids == ["2115805884466995409", "2115806101480337475"]
-    assert {post.text for post in [*page.data, *page.includes.posts]} == {TEXT}
+    assert page.data[1].public_metrics is not None
+    assert page.data[1].public_metrics.repost_count == 7
+    assert {post.text for post in page.data} == {TEXT}
     assert page.meta is not None
     assert page.meta.result_count == 3
     assert GetPostsByIdsResponse.model_validate(page.dump_upstream()) == page
