@@ -18,6 +18,22 @@ All notable changes to this project are documented here. The format follows
   counts and app-only Bearer Token authentication, and the X Developer Agreement and
   Developer Policy, each kept as served; `scripts/refresh_upstream.py` reproduces it
   and regenerates `FETCHED.md`.
+- The four read wrappers the account probe needs, one page each as the OpenAPI
+  document's response model (`data`, `includes`, `errors`, `meta`):
+  `api.get_users_by_usernames`, `api.get_posts_by_ids`, `api.get_users_posts` and
+  `api.get_posts_counts_all`. Their parameters carry the document's names, which X takes
+  (`post.fields`, `expansions=most_recent_post_id`, `referenced_posts`), and values outside
+  the document's bounds are refused before the call. The models read both spellings X
+  answers in, the document's and the guides' (`most_recent_tweet_id`, `tweet_count`,
+  `includes.tweets`).
+- `classify` maps X's answers to the error taxonomy: a 429 to `RateLimitError` with the
+  wait until `x-rate-limit-reset` (15 minutes when it is missing), a usage cap to
+  `RateLimitError` until the next billing cycle, a 400 to `InvalidRequestError`, a 404 to
+  `NotFoundError`. A 200 that carries errors is returned as the page.
+- `scripts/record_fixture.py`, the fixture recorder: it records from @XDevelopers, @USDA
+  and @FAO only, prints its spend estimate first, and rewrites the text of posts and
+  profiles before the fixture is written, as the X Developer Agreement requires of
+  content given to third parties; the recorded fixtures of the four wrappers.
 
 ### Changed
 
@@ -25,6 +41,7 @@ All notable changes to this project are documented here. The format follows
   rate-limit row names X's documented 15-minute windows beside the self-imposed pace; the
   fixtures path is `<wrapper>/<case>.json`; the X API v2 specifics hold spend, the
   fixtures decision with the Developer Agreement's clause, the nightly live run, the
-  operator-only `.local/` and the paths, names and errors the snapshot states.
+  operator-only `.local/` and the paths, names and errors the snapshot states; then the
+  names the wire takes and answers in, the recorder's rules and `classify`'s mapping.
 - README: the Bearer Token in the key sentence, and the X Developer Agreement and
   Developer Policy as the terms data comes under.
