@@ -28,8 +28,9 @@ from xippios.x import tasks
 ```
 
 Task functions are listed in the status table below as they are added. Underneath them,
-`xippios.x.api` wraps four X API v2 operations one page at a time (users by username,
-posts by id, a user's posts, post counts over the archive), the layer the tasks will
+`xippios.x.api` wraps eight X API v2 operations one page at a time (users by username,
+posts by id, a user's posts, post counts over the archive, recent search, post counts over
+the last seven days, a List's posts and a List's members), the layer the tasks will
 compose.
 
 ## MCP

@@ -35,6 +35,17 @@ All notable changes to this project are documented here. The format follows
   the `name`, `username` and `location` of every user other than those three accounts
   before the fixture is written, counts as sent, within what the X Developer Agreement
   allows of content given to third parties; the recorded fixtures of the four wrappers.
+- Four more read wrappers, one page each as the OpenAPI document's response model:
+  `api.search_posts_recent` (recent search, with `SortOrder`), `api.get_posts_counts_recent`
+  (post counts over the last seven days), `api.get_lists_posts` (the posts of a List's
+  members) and `api.get_lists_members`, under the document's parameter names, values
+  outside its bounds and two parameters of which it allows one refused before the call.
+  Their fixtures are recorded from @USDA's posts and from a List @XDevelopers owns, the
+  members' names, handles, locations and bios rewritten.
+- `scripts/record_fixture.py` records the four new wrappers: a recent search only for
+  `from:` one of @XDevelopers, @USDA and @FAO, alone or without reposts and replies, since
+  a search returns the posts it matches; a List only when one of the three owns it; a
+  List's members without their profile URL, which the rewrite does not cover.
 - `scripts/probe_accounts.py`, the account probe: it reads the operator's account list,
   prints its spend estimate and call plan without a request, and only with `--spend
   --spend-cap` looks the accounts up, counts their posts and original posts by day over
