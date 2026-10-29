@@ -19,9 +19,11 @@ The script writes, each file the body as fetched, byte for byte:
 
 The HTML page at ``DOCS_URL`` is read without a file, for its site footer alone, which the
 Markdown form leaves out: the footer states no copyright line and links X's Terms of
-Service (``ATTRIBUTION``). A page whose title is not the one recorded in ``PAGES``, a terms
-page that no longer prints what ``ATTRIBUTION`` quotes from it, or a document that is not
-X API v2's OpenAPI document stops the run, before anything is written.
+Service (``ATTRIBUTION``). Its row records the size and sha256 of the footer's text as
+read, not of the page, whose HTML changes with every build of the site. A page whose
+title is not the one recorded in ``PAGES``, a terms page that no longer prints what
+``ATTRIBUTION`` quotes from it, or a document that is not X API v2's OpenAPI document
+stops the run, before anything is written.
 
 Everything is fetched before anything is written, one request at a time after a pause,
 each URL retried at most once after a network error or a 5xx. Files the run does not
@@ -38,9 +40,12 @@ sent or read. Run from the repository root::
 
 ``--check`` exits 1 when the snapshot differs from what upstream serves now, ``Fetched``
 aside. X serves the OAuth 2.0 scope lists of the document's ``security`` requirements in a
-new order on each request, so ``--check`` compares the OpenAPI document with those lists
-sorted (``canonical``); the file itself is always the body as fetched. Nothing is converted:
-the script declares no dependency.
+new order on each request, so ``--check`` compares the OpenAPI document as text with those
+lists sorted and nothing else changed (``canonical``): where the file or the fetched body is
+not exactly the document written with ``json.dumps(indent=2, ensure_ascii=False)``, as X
+serves it, their bytes are compared instead, so any other difference counts. A write run
+writes the body as fetched, in that request's order, so a refresh's diff shows reordered
+scope lists. Nothing is converted: the script declares no dependency.
 """
 
 import argparse
@@ -94,6 +99,8 @@ class Page:
             run, so a moved or replaced page is not taken for this one.
         terms: The page is terms that bind the API (``ATTRIBUTION``): kept whole, checked
             for what ``ATTRIBUTION`` quotes from it, and not searched further.
+        footer: An HTML page read for its site footer alone: checked there, and its row
+            records the size and sha256 of the footer's text as read, and no validators.
     """
 
     url: str
@@ -104,6 +111,7 @@ class Page:
     excerpt: bool = False
     title: str = ""
     terms: bool = False
+    footer: bool = False
 
 
 DOCS = "https://docs.x.com"
@@ -147,7 +155,14 @@ PAGES: tuple[Page, ...] = (
     _markdown(
         "developer-terms/policy", "terms/developer-policy.md", "X Developer Policy", terms=True
     ),
-    Page(DOCS_URL, note="the HTML page, read for its site footer alone (Attribution)"),
+    Page(
+        DOCS_URL,
+        note="the HTML page, read for its site footer alone (Attribution); Bytes and sha256 "
+        "are those of the footer's text as read, its tags dropped and its whitespace "
+        "collapsed, and no validators are kept, since the page's HTML changes with every "
+        "build of the site",
+        footer=True,
+    ),
 )
 """Every page the snapshot records, in the order of ``FETCHED.md``'s rows."""
 
@@ -211,7 +226,9 @@ ATTRIBUTION: tuple[Statement, ...] = (
         "X Developer Agreement and Policy",
         SPEC_FILE,
         "the name of the OpenAPI document's `info.license`, whose url `info.termsOfService` "
-        "gives as well; developer.x.com redirects it to docs.x.com",
+        "gives as well; developer.x.com redirects it (307) to "
+        f"{DOCS}/developer-terms/agreement-and-policy.html, which answered 404 when checked "
+        "on 2026-10-29",
         "https://developer.x.com/en/developer-terms/agreement-and-policy.html",
     ),
     Statement(
@@ -245,10 +262,17 @@ CAPTURE = (
     "`info` names the X Developer Agreement and Policy as its licence and terms, the two "
     "documents kept whole under `terms/`. X serves the OAuth 2.0 scope lists of the "
     "document's `security` requirements in a new order on each request (two fetches on "
-    "2026-10-29 differed in nothing else), so a refresh's diff may show reordered scope "
-    "lists, and `--check` compares the document with those lists sorted. docs.x.com sends "
-    "Last-Modified as the time its cache rendered a page, which moves without the page "
-    "changing, and no ETag; the API sends neither for the OpenAPI document."
+    "2026-10-29 differed in nothing else). A write run writes the body as fetched, in that "
+    "request's order, so a refresh's diff shows reordered scope lists. `--check` compares "
+    "the document as text with those lists sorted and nothing else changed: where the file "
+    "or the fetched body is not exactly the document written with `json.dumps(indent=2, "
+    "ensure_ascii=False)`, as X serves it, it compares their bytes, so a difference in key "
+    "order, whitespace, escapes or numbers still counts. docs.x.com sends no ETag, and a "
+    "Last-Modified that does not look like a page's last change: on 2026-10-29 the OAuth 2.0 "
+    "overview reported Last-Modified 14:20:07 UTC beside an Age of 44,585 s at 14:38 UTC. "
+    "Taken, as an inference, for the time a cache rendered the page, it can move without "
+    "the page changing, and `--check` then reports `FETCHED.md`. The API sends neither "
+    "validator for the OpenAPI document."
 )
 """``FETCHED.md``'s "How this is captured": what is converted, cut or left out, and why."""
 
@@ -446,14 +470,22 @@ def _sort_scopes(node: Any) -> None:
             _sort_scopes(item)
 
 
-def canonical(body: bytes) -> Any:
-    """The OpenAPI document with the scope lists of its security requirements sorted.
+def canonical(body: bytes) -> bytes | None:
+    """The OpenAPI document's text with the scope lists of its security requirements sorted.
 
     X serves those lists in a new order on each request; ``--check`` compares this form.
+    ``None`` where ``body`` is not exactly ``json.dumps(indent=2, ensure_ascii=False)`` of
+    the document it parses to, as X serves it: then only the bytes compare, so nothing
+    but the order of the scope lists is ever ignored.
     """
-    document = json.loads(body)
+    try:
+        document = json.loads(body, object_pairs_hook=_no_duplicates)
+    except ValueError:
+        return None
+    if json.dumps(document, indent=2, ensure_ascii=False).encode("utf-8") != body:
+        return None
     _sort_scopes(document)
-    return document
+    return json.dumps(document, indent=2, ensure_ascii=False).encode("utf-8")
 
 
 _FOOTER = re.compile(r"<footer\b[^>]*>(.*?)</footer>", re.DOTALL)
@@ -517,12 +549,18 @@ def _check_spec(page: Page, response: Response) -> None:
     _search(page, text)
 
 
-def _check_footer(page: Page, response: Response) -> None:
-    """An HTML page read for its site footer: the recorded links, and nothing else stated."""
+def _footer(page: Page, response: Response) -> str:
+    """The site footer of an HTML page, as markup; a page without exactly one stops the run."""
     footers = _FOOTER.findall(decode(response))
     if len(footers) != 1:
         raise changed(page.url, f"{len(footers)} footers, not one")
     footer: str = footers[0]
+    return footer
+
+
+def _check_footer(page: Page, response: Response) -> None:
+    """An HTML page read for its site footer: the recorded links, and nothing else stated."""
+    footer = _footer(page, response)
     for statement in _statements(page.url):
         links = [
             link
@@ -547,7 +585,7 @@ def check_attribution(page: Page, response: Response) -> None:
     """
     if page.file == SPEC_FILE:
         _check_spec(page, response)
-    elif page.file is None:
+    elif page.footer:
         _check_footer(page, response)
     else:
         _check_markdown(page, response)
@@ -563,9 +601,16 @@ def reduce(page: Page, response: Response) -> bytes:
 
 
 def capture(page: Page) -> Row:
-    """Fetch ``page``, check its attribution and make its file's content; write nothing."""
+    """Fetch ``page``, check its attribution and make its file's content; write nothing.
+
+    A page read for its footer keeps, as its row's body, the footer's text as read and no
+    validators (``Page.footer``).
+    """
     response = fetch(page.url, page.status)
     check_attribution(page, response)
+    if page.footer:
+        text = _text(_footer(page, response)).encode("utf-8")
+        response = replace(response, body=text, etag=None, last_modified=None)
     return Row(page, response, reduce(page, response) if page.file else None)
 
 
@@ -649,8 +694,9 @@ def render_fetched(rows: Sequence[Row], fetched: str) -> str:
         *_paragraph(
             "Fetched is the UTC time the run started, in ISO 8601 with an explicit Z, the",
             "same for every row. Bytes and sha256 are those of the body as fetched, which",
-            "every file here is byte for byte. Last-Modified is the HTTP header in UTC, ETag",
-            "as sent, `-` where none is sent. A page recorded without",
+            "every file here is byte for byte; the `(no file)` row's are those of the footer",
+            "text it is read for, as its note says. Last-Modified is the HTTP header in UTC,",
+            "ETag as sent, `-` where none is sent. A page recorded without",
             "a file is `(no file)`, and a body that changes on every request records no",
             f"size, sha256 or validators. Requests go one at a time, {PAUSE:g} s apart,",
             f"each retried at most once, identified as `{USER_AGENT}`; no API key is sent",
@@ -708,19 +754,18 @@ def write_snapshot(out: Path, rows: Sequence[Row], fetched_md: str) -> None:
 def _as_recorded(out: Path, row: Row) -> Row:
     """The OpenAPI document's row with the snapshot's file, where the two differ in order only.
 
-    ``canonical`` sorts the scope lists that X serves in a new order on each request; where
-    the fetched document and the file are the same in that form, the row takes the file's
-    body, so neither the file nor ``FETCHED.md``'s row counts as changed.
+    ``canonical`` sorts the scope lists that X serves in a new order on each request and
+    changes nothing else; where the fetched document and the file have the same canonical
+    text, the row takes the file's body, so neither the file nor ``FETCHED.md``'s row
+    counts as changed. Any other difference, or a body that is not X's serialisation,
+    leaves the row as fetched.
     """
     kept = out / SPEC_FILE
     if row.page.file != SPEC_FILE or row.content is None or not kept.is_file():
         return row
     recorded = kept.read_bytes()
-    try:
-        same = canonical(recorded) == canonical(row.content)
-    except ValueError:
-        return row
-    if not same:
+    old, new = canonical(recorded), canonical(row.content)
+    if old is None or new is None or old != new:
         return row
     return Row(row.page, replace(row.response, body=recorded), recorded)
 
@@ -728,7 +773,7 @@ def _as_recorded(out: Path, row: Row) -> Row:
 def compare(out: Path, rows: Sequence[Row]) -> list[str]:
     """The snapshot's files that differ from this run's, ``FETCHED.md``'s ``Fetched`` aside.
 
-    The OpenAPI document is compared with its scope lists sorted (``_as_recorded``).
+    The OpenAPI document is compared as text with its scope lists sorted (``_as_recorded``).
     """
     rows = [_as_recorded(out, row) for row in rows]
     files = _files(rows)
