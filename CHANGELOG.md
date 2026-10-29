@@ -34,6 +34,12 @@ All notable changes to this project are documented here. The format follows
   and @FAO only, prints its spend estimate first, and rewrites the text of posts and
   profiles before the fixture is written, as the X Developer Agreement requires of
   content given to third parties; the recorded fixtures of the four wrappers.
+- `scripts/probe_accounts.py`, the account probe: it reads the operator's account list,
+  prints its spend estimate and call plan without a request, and only with `--spend
+  --spend-cap` looks the accounts up, counts their posts and original posts by day over
+  90 days and samples ten posts each, waiting out X's rate-limit windows and keeping every
+  page in a same-day cache; it writes a CSV and a Markdown report with the go, US-only or
+  no-go decision under `.local/`, which git now ignores.
 
 ### Changed
 
@@ -42,6 +48,7 @@ All notable changes to this project are documented here. The format follows
   fixtures path is `<wrapper>/<case>.json`; the X API v2 specifics hold spend, the
   fixtures decision with the Developer Agreement's clause, the nightly live run, the
   operator-only `.local/` and the paths, names and errors the snapshot states; then the
-  names the wire takes and answers in, the recorder's rules and `classify`'s mapping.
+  names the wire takes and answers in, the recorder's rules and `classify`'s mapping; then
+  the probe, and the nightly run keyless until the probe's go.
 - README: the Bearer Token in the key sentence, and the X Developer Agreement and
   Developer Policy as the terms data comes under.
