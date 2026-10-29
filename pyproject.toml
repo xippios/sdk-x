@@ -46,6 +46,9 @@ dev = [
   "respx>=0.22",
   "anyio>=4",
   "detect-secrets>=1.5",
+  # scripts/probe_accounts.py reads the operator's account list (.local/x-accounts.yaml)
+  "pyyaml>=6",
+  "types-PyYAML>=6",
 ]
 
 [build-system]

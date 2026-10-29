@@ -50,6 +50,7 @@ scripts/
                          the X Developer Agreement and Policy
   record_fixture.py      records one exchange of the four wrappers, X Content rewritten (D1);
                          Recording fixtures below
+  probe_accounts.py      the account probe and its gate P report (The probe below)
 tests/
   conftest.py      enables xippios.core.testing.plugin, which keeps the run offline
   fixtures/        recorded responses, <wrapper>/<case>.json, the directory named after the
@@ -60,6 +61,8 @@ tests/
   test_api.py      the endpoint wrappers' replay tests, one per recorded case
   test_client.py   classify against the recorded refusals and built 429, usage cap and 404
   test_record_fixture.py  the recorder's rewrite, verify, account guards and estimate
+  test_probe_accounts.py  the probe replayed over the recorded fixtures, its estimate, cap,
+                   waits, metrics and decision
   test_tasks.py    per-task replay tests
   test_live.py     @pytest.mark.live smoke tests, one per task
 docs/upstream/     documentation snapshot and FETCHED.md
@@ -89,6 +92,8 @@ keeps no placeholder fixture of its own.
 `.github/workflows/live.yml` runs the live tests nightly at 01:24 UTC, a time derived from
 the slug so that sources sharing a key never start together.
 Only its `uv run pytest -m live --tb=short` step sees the key, from the org secret `X_API_KEY`.
+Until gate P's go that secret does not exist and the nightly run is keyless (Live tests (D3)
+below).
 
 ## X API v2 specifics
 
@@ -204,11 +209,33 @@ them data (core gap row 326).
 `.github/workflows/live.yml` runs keyless until gate P's go; after it, the nightly run
 spends one billable lookup a night.
 
+### The probe
+
+`scripts/probe_accounts.py` measures whether the curated accounts still post and writes the
+gate P report (the plan §8; D5's thresholds are named constants in it). It prints its
+estimate first and calls nothing (`uv run scripts/probe_accounts.py`: N, the call plan and
+the plan's formula at the snapshot's prices, 9.375 USD at N=75, the whole estimate, since
+its ten-post samples ask for no expansion), and the cap to pass: the formula and 0.005 USD
+an account for the fallback lookups, 9.750 USD at N=75. The requests' upper bounds add up
+to no more, so a cap at that figure never stops a run before its report. It spends only
+with `--spend --spend-cap USD`, the key through direnv
+(`direnv exec ~/github/sdk uv run scripts/probe_accounts.py --spend --spend-cap 9.75`),
+refuses when the estimate exceeds the cap and stops before a request that could pass it.
+It reads `.local/x-accounts.yaml` (`--accounts`), keeps every page under
+`.local/cache/<date>/`, so a stopped or repeated run the same UTC day pays only for what it
+has not fetched, adds each run's requests and actual spend to that day's
+`.local/cache/<date>/spend.json`, and writes `.local/probe-<date>.csv` and
+`.local/probe-<date>.md`, whose Spend section gives the run's spend and the day's.
+`GET /2/tweets/counts/all` allows 300 requests per 15 minutes and a run makes 6N: on X's
+429 the probe prints the wait, sleeps it, 15 minutes at most, and resumes. Only aggregates
+leave `.local/`: counts and the decision line, never a handle or a post's text. The wait
+and stop lines quote `classify`'s method and path, which can carry a user id
+(`GET /2/users/<id>/tweets`), so they are never pasted into a public record verbatim.
+
 ### Operator-only files
 
 `.local/` holds what only the operator keeps: the curated account list, the probe cache
-and its reports. Nothing under it is committed; the probe PR adds its line to
-`.gitignore`.
+and its reports. Nothing under it is committed; `.gitignore` carries its line.
 
 ### Paths, names and errors
 
