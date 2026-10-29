@@ -14,7 +14,9 @@ uv add "xippios-x[mcp]"     # + MCP server
 uv add "xippios-x[http]"    # + FastAPI router
 ```
 
-Set `X_API_KEY` in the environment. Nothing is read from files.
+Set `X_API_KEY` in the environment to your X app's Bearer Token, which X also calls the
+App only Access Token (Developer Console, Keys and tokens), not the console's API Key,
+the OAuth 1.0a consumer key. Nothing is read from files.
 
 ## 30-second example
 
@@ -59,9 +61,11 @@ exactly tasks.__all__. -->
 
 ## Upstream terms and attribution
 
-Data comes from X API v2 (https://x.com), on whatever terms upstream
-states for it, if any; this package adds no rights to it. Documentation snapshot and its
-attribution: `docs/upstream/FETCHED.md`.
+Data comes from X API v2 (https://x.com) under the
+[X Developer Agreement](https://docs.x.com/developer-terms/agreement) and the
+[X Developer Policy](https://docs.x.com/developer-terms/policy), which bind every app that
+uses it; this package adds no rights to it. Documentation snapshot and its attribution:
+`docs/upstream/FETCHED.md`.
 
 ## Licence
 
