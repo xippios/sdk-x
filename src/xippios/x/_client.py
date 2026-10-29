@@ -125,13 +125,13 @@ def classify(response: httpx.Response) -> XippiosError | None:
     - A ``usage-capped`` problem, at any 4xx status: ``RateLimitError`` with
       ``retry_after`` ``BILLING_CYCLE``, since the cap holds until the next billing
       cycle, whose start the answer does not give.
-    - A 429, or a ``rate-limit-exceeded`` problem: ``RateLimitError`` with
+    - A 429, or a ``rate-limit-exceeded`` problem at any 4xx: ``RateLimitError`` with
       ``retry_after`` the seconds until ``x-rate-limit-reset`` (a Unix timestamp; never
       negative), else ``RATE_LIMIT_WINDOW`` (900 s). Retries wait it out up to the
       policy's ``backoff_max``; beyond that the error reaches the caller (ADR-0010).
-    - A 400, or an ``invalid-request`` problem: ``InvalidRequestError`` with upstream's
-      words, since the caller has to change the request (ADR-0007).
-    - A 404, or a ``resource-not-found`` problem: ``NotFoundError``.
+    - A 400, or an ``invalid-request`` problem at any 4xx: ``InvalidRequestError`` with
+      upstream's words, since the caller has to change the request (ADR-0007).
+    - A 404, or a ``resource-not-found`` problem at any 4xx: ``NotFoundError``.
     - Everything else falls through to core's mapping: a 401 or 403 becomes
       ``AuthError`` (the keyless and the wrong-key 401 answer ``Unauthorized``), a 5xx
       ``UpstreamError``, retried.
@@ -152,7 +152,7 @@ def classify(response: httpx.Response) -> XippiosError | None:
             retry_after=BILLING_CYCLE,
             source=SOURCE,
         )
-    if status == 429 or kind in _RATE_LIMITED:
+    if status == 429 or (kind in _RATE_LIMITED and status < 500):
         wait = _until_reset(response)
         return RateLimitError(
             f"X rate limit reached (HTTP {status} from {where}){said}. The endpoint's "
