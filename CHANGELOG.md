@@ -53,6 +53,35 @@ All notable changes to this project are documented here. The format follows
   page in a same-day cache with a ledger of the day's spend; it writes a CSV and a
   Markdown report with the go, US-only or no-go decision under `.local/`, which git now
   ignores.
+- The task layer, seven read tasks, each one request returning X's page as sent with its
+  release metadata: `lookup_users` (users by username, with their most recent post on
+  request), `get_user_posts`, `search_recent_posts` (512 characters of query at most),
+  `count_posts` (post counts over the full archive by hour, upstream's default, day or
+  minute, 1,024 characters of query at most), `get_list_posts`, `get_conversation_posts`
+  (a conversation's posts of the last seven days) and `get_usage` (the project's post
+  usage). Paging is the caller's, with the `next_token` of the previous page;
+  `max_results` defaults to 10 and goes up to 100, and each docstring names the price per
+  post, user or request. `meta.published_at`
+  stays empty: X states no release time for a page, and each post carries its own creation
+  time. A user or List id X does not find, or a lookup that finds nobody, raises
+  `NotFoundError`.
+- The MCP read server `xippios-x-mcp` and the FastAPI router serve the seven tasks as the
+  tools `x_lookup_users`, `x_get_user_posts`, `x_search_recent_posts`, `x_count_posts`,
+  `x_get_list_posts`, `x_get_conversation_posts` and `x_get_usage` and the routes under
+  `/x/`. The post tools' results are capped at 128,000 bytes and `x_lookup_users`' at
+  160,000, so a whole page of 100 posts or users comes back where its text is
+  Latin-script (mostly non-Latin text can still be cut); the other tools keep the family's
+  64 KB, which a month of hourly counts fits and minute counts over more than about 14
+  hours pass. A cut's note names the tool's own parameters.
+- `api.get_usage`, the wrapper of `GET /2/usage/tweets`, with the `Usage` models and
+  `UsageField`; X answers in the OpenAPI document's shape, its counts as digit strings,
+  read as numbers.
+- `scripts/record_fixture.py` records `get_usage`, which has no price on X's pricing page,
+  and a recent search for a conversation started by a post of @XDevelopers, @USDA or @FAO,
+  its replies' text rewritten; the fixtures of one @USDA conversation and of seven days of
+  usage.
+- One live smoke test per task; the nightly run spends one billable call, the lookup of
+  @XDevelopers, and the other six run on demand and locally.
 
 ### Changed
 
@@ -80,3 +109,7 @@ All notable changes to this project are documented here. The format follows
   split a value in a one-line record, by the field to quote, `why` say; a list that is not
   UTF-8 text is refused by its path, without a traceback. `CLAUDE.md` says how the list is
   written.
+- `CLAUDE.md`: the task layer (the tasks, their spend per call, fields, query limits,
+  paging, absence, metadata, the `published_at` rule and the MCP caps), the nightly live
+  run's rule and the recorder's conversation guard; README: the example, the MCP notes and
+  the status table of the seven tasks.

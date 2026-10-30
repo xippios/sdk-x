@@ -4,9 +4,10 @@ Conventions §3 and ``/add-endpoint`` give the rules.
 
 The models mirror the schemas of the OpenAPI document in ``docs/upstream/openapi/
 openapi.json`` (version 2.173) under its names: ``User``, ``Post``, ``Expansions``,
-``Problem``, the eight operations' responses and their parts. Every field the document
-gives is a field here, optional unless the document requires it (``id`` of a ``User`` and
-a ``Post`` is required too: it is the object's identifier, sent in every recorded answer).
+``Problem``, ``Usage``, the nine operations' responses and their parts. Every field the
+document gives is a field here, optional unless the document requires it (``id`` of a
+``User`` and a ``Post`` is required too: it is the object's identifier, sent in every
+recorded answer).
 Times parse to ``datetime``; the document's enumerations are ``StrEnum`` (ADR-0008),
 written by hand below since ``enums.py`` holds only what the refresh script generates. An
 object the document gives no properties for (``article``, ``non_public_metrics``), or
@@ -50,6 +51,7 @@ __all__ = [
     "GetPostsCountsRecentResponse",
     "GetPostsCountsRecentResponseData",
     "GetPostsCountsRecentResponseMeta",
+    "GetUsageResponse",
     "GetUsersByUsernamesResponse",
     "GetUsersPostsResponse",
     "GetUsersPostsResponseMeta",
@@ -71,6 +73,11 @@ __all__ = [
     "SearchPostsRecentResponse",
     "SearchPostsRecentResponseMeta",
     "SortOrder",
+    "Usage",
+    "UsageDailyClientAppUsage",
+    "UsageDailyProjectUsage",
+    "UsageDay",
+    "UsageField",
     "User",
     "UserAffiliation",
     "UserExpansion",
@@ -89,8 +96,9 @@ def _either(name: str, guides: str) -> AliasChoices:
 
 # The enumerations below are the OpenAPI document's, written by hand: the parameters'
 # enums (components.parameters UserFieldsParameter, UserExpansionsParameter,
-# PostFieldsParameter, PostExpansionsParameter, the granularity of getPostsCountsAll and
-# getPostsCountsRecent, the sort_order of searchPostsRecent) and the schemas'
+# PostFieldsParameter, PostExpansionsParameter, UsageFieldsParameter, the granularity of
+# getPostsCountsAll and getPostsCountsRecent, the sort_order of searchPostsRecent) and the
+# schemas'
 # (PostReferencedPosts, UserWithheld, PostWithheld, UserConnectionStatus).
 # The adapters publish each class docstring as the schema's description, so it names the
 # upstream list and the snapshot it comes from (conventions §8, ADR-0008).
@@ -202,6 +210,21 @@ class PostExpansion(StrEnum):
     IN_REPLY_TO_USER_ID = "in_reply_to_user_id"
     REFERENCED_POSTS = "referenced_posts"
     USERNAME = "username"
+
+
+class UsageField(StrEnum):
+    """A field of the Usage answer for ``usage.fields``, e.g. "project_usage", "cap_reset_day".
+
+    Values of ``UsageFieldsParameter`` in X API v2's OpenAPI document, version 2.173,
+    snapshot of 2026-10-29 (``docs/upstream/openapi/openapi.json``).
+    """
+
+    CAP_RESET_DAY = "cap_reset_day"
+    DAILY_CLIENT_APP_USAGE = "daily_client_app_usage"
+    DAILY_PROJECT_USAGE = "daily_project_usage"
+    PROJECT_CAP = "project_cap"
+    PROJECT_ID = "project_id"
+    PROJECT_USAGE = "project_usage"
 
 
 class Granularity(StrEnum):
@@ -910,3 +933,75 @@ class GetListsMembersResponse(UpstreamModel):
     includes: Expansions | None = None
     errors: list[Problem] | None = None
     meta: GetListsMembersResponseMeta | None = None
+
+
+class UsageDay(UpstreamModel):
+    """A single day's usage entry, an item of the ``usage`` of a project or a client app.
+
+    Attributes:
+        date: The day, as X sends it, an ISO 8601 date-time.
+        usage: Posts used that day; ``None`` when X sends none. The document types it as
+            a string of digits, read here as the number it is.
+    """
+
+    date: datetime
+    usage: int | None = None
+
+
+class UsageDailyClientAppUsage(UpstreamModel):
+    """An item of ``UsageDailyClientAppUsage``: one client app's daily Post usage.
+
+    Attributes:
+        client_app_id: The client app's id.
+        usage: Its usage by day.
+        usage_result_count: The number of entries in ``usage``.
+    """
+
+    client_app_id: str | None = None
+    usage: list[UsageDay] | None = None
+    usage_result_count: int
+
+
+class UsageDailyProjectUsage(UpstreamModel):
+    """``UsageDailyProjectUsage``: the project's daily Post usage.
+
+    Attributes:
+        project_id: The project's id.
+        usage: Its usage by day.
+    """
+
+    project_id: str | None = None
+    usage: list[UsageDay] | None = None
+
+
+class Usage(UpstreamModel):
+    """``Usage``: the Post usage of the project the Bearer Token's app belongs to.
+
+    Attributes:
+        cap_reset_day: The day of the month the usage cap resets, e.g. ``29``.
+        daily_client_app_usage: Usage by day for each client app of the project.
+        daily_project_usage: The project's usage by day.
+        project_cap: The project's Post cap for the billing cycle; the document types it
+            as a string of digits, read here as the number it is.
+        project_id: The project's id.
+        project_usage: Posts the project used in the billing cycle, likewise.
+    """
+
+    cap_reset_day: int | None = None
+    daily_client_app_usage: list[UsageDailyClientAppUsage] | None = None
+    daily_project_usage: UsageDailyProjectUsage | None = None
+    project_cap: int | None = None
+    project_id: str | None = None
+    project_usage: int | None = None
+
+
+class GetUsageResponse(UpstreamModel):
+    """``GetUsageResponse``: the answer of ``getUsage``.
+
+    Attributes:
+        data: The project's usage.
+        errors: Problems, when X sends any.
+    """
+
+    data: Usage | None = None
+    errors: list[Problem] | None = None

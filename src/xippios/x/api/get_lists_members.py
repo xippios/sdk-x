@@ -5,8 +5,8 @@ Reference: ``docs/upstream/openapi/openapi.json``, ``paths./2/lists/{id}/members
 ``pagination_token`` ("A 64-bit signed integer.", a string the document does not bound,
 sent as given), ``user.fields``, ``expansions`` (the ``UserExpansionsParameter``) and
 ``post.fields``; the answer ``GetListsMembersResponse``: ``data`` (``User``), ``includes``,
-``errors``, ``meta`` (``result_count``, ``next_token``, ``previous_token``). Collecting the
-pages is the task layer's.
+``errors``, ``meta`` (``result_count``, ``next_token``, ``previous_token``). Paging is the
+caller's: a task returns one page and its token.
 
 Recorded on 2026-10-29 from a List @XDevelopers owns (``xdevelopers_list_ten``): its eight
 members for ``max_results=10``, ``meta.result_count`` 8 and no ``next_token``; without

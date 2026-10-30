@@ -8,7 +8,7 @@ one of ``pagination_token``, ``next_token`` may be provided"), ``granularity`` (
 ``data`` (``start``, ``end``, ``post_count``), ``meta`` (``next_token``,
 ``total_post_count``). A page spans 31 days, at any granularity (``pages/post-counts.md``).
 The document's ``since_id``, ``until_id`` and ``search_count.fields`` are not wrapped: no
-task needs them yet. Collecting the pages is the task layer's.
+task needs them yet. Paging is the caller's: a task returns one page and its token.
 
 Recorded on 2026-10-29 (``usda_by_day``, ``usda_by_day_page_2``, ``usda_originals_by_day``):
 the first page holds the 31 days up to the request, its buckets oldest first, the newest

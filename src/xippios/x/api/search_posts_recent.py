@@ -12,7 +12,7 @@ provided." The answer ``SearchPostsRecentResponse``: ``data``, ``includes``, ``e
 ``meta`` (``newest_id``, ``oldest_id``, ``result_count``, ``next_token``,
 ``previous_token``). The document's ``media.fields``, ``poll.fields`` and ``place.fields``
 are not wrapped: no task needs them yet, and their objects stay as sent in ``includes``.
-Collecting the pages is the task layer's.
+Paging is the caller's: a task returns one page and its token.
 
 Recorded on 2026-10-29 (``usda_ten``, ``usda_ten_page_2``, ``unbalanced_parenthesis``): ten
 @USDA Posts a page, newest first without ``sort_order``, ``meta.newest_id`` and
