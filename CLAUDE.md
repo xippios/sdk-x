@@ -19,6 +19,9 @@ the family rules every source shares are in `.claude/family.md`, which the next 
 
 The snapshot listed in `docs/upstream/FETCHED.md` is the reference for names, parameters and semantics.
 
+Release 0.1.0 ships under sdk-core's ADR-0027, X as a metered, content-bearing source
+(`docs/adr/0027-x-metered-content-source.md`), and conventions 1.24.
+
 ## Layout
 
 ```
