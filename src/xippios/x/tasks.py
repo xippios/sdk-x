@@ -316,7 +316,8 @@ async def search_recent_posts_async(
     a post returned, at most 0.50 USD a call.
 
     Args:
-        query: X's search syntax, at most 512 characters (``pages/rate-limits.md``),
+        query: X's search syntax (``pages/search-operators.md``), at most 512
+            characters (``pages/rate-limits.md``),
             e.g. ``"from:USDA"``, ``"from:USDA -is:retweet -is:reply"`` or
             ``"wheat from:USDA"``; longer is refused before the call.
         max_results: Posts on the page, from 10 to 100, e.g. ``10`` (the default) or
@@ -371,7 +372,8 @@ async def count_posts_async(
     a request, every request, since counts are not deduplicated.
 
     Args:
-        query: X's search syntax, at most 1,024 characters (``pages/post-counts.md``),
+        query: X's search syntax (``pages/search-operators.md``), at most 1,024
+            characters (``pages/post-counts.md``),
             e.g. ``"from:USDA"`` or ``"from:USDA -is:retweet -is:reply"`` (original posts
             only); longer is refused before the call.
         granularity: The bucket, ``"hour"`` (upstream's default, and this task's),
@@ -453,7 +455,8 @@ async def get_conversation_posts_async(
     """Get one page of the posts of an X conversation of the last seven days, newest first.
 
     One recent search (``GET /2/tweets/search/recent``) for
-    ``conversation_id:<conversation_id>``: the post that started the conversation and
+    ``conversation_id:<conversation_id>``, X's operator for a conversation thread
+    (``pages/search-operators.md``): the post that started the conversation and
     the replies to it and to each other, those of the last seven days only. The posts are
     in ``data``, each with ``id``, ``text``, ``created_at``, ``lang``, ``public_metrics``,
     ``conversation_id`` and ``edit_history_post_ids``; ``data.meta`` holds

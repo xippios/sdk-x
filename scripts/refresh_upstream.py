@@ -10,7 +10,8 @@ The script writes, each file the body as fetched, byte for byte:
 
 - ``openapi/openapi.json``: the OpenAPI document of X API v2, ``SPEC_URL``;
 - ``pages/*.md``: the pages on pricing, usage and billing, the usage endpoint, rate limits,
-  response codes and errors, fields, pagination, post counts, and OAuth 2.0 with app-only
+  response codes and errors, fields, pagination, post counts, the search operators (the
+  query syntax of recent search and of the post counts), and OAuth 2.0 with app-only
   Bearer Token authentication, in their Markdown form;
 - ``terms/developer-agreement.md`` and ``terms/developer-policy.md``: the X Developer
   Agreement and the X Developer Policy, the terms that bind the X API and X Content, kept
@@ -140,6 +141,9 @@ PAGES: tuple[Page, ...] = (
     _markdown("x-api/fundamentals/fields", "pages/fields.md", "Fields"),
     _markdown("x-api/fundamentals/pagination", "pages/pagination.md", "Pagination"),
     _markdown("x-api/posts/counts/introduction", "pages/post-counts.md", "Post Counts"),
+    _markdown(
+        "x-api/posts/search/integrate/operators", "pages/search-operators.md", "Search Operators"
+    ),
     _markdown("fundamentals/authentication/oauth-2-0/overview", "pages/oauth-2-0.md", "OAuth 2.0"),
     _markdown(
         "fundamentals/authentication/oauth-2-0/application-only",

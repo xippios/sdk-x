@@ -350,7 +350,7 @@ and its reports. Nothing under it is committed; `.gitignore` carries its line.
 ### Paths, names and errors
 
 The OpenAPI document names `https://api.x.com` as its only server and writes every path
-with `/2` (`docs/upstream/openapi/openapi.json`, line 21380); `BASE_URL` already holds
+with `/2` (`docs/upstream/openapi/openapi.json`, line 21452); `BASE_URL` already holds
 `https://api.x.com/2`, so a wrapper calls `/tweets`, never `/2/tweets`. The document
 (version 2.173) names the field parameter `post.fields` and the field `referenced_posts`
 where the guides (`pages/fields.md`) write `tweet.fields` and `referenced_tweets`, and has
@@ -376,6 +376,15 @@ counts, which take no `post.fields`, answer `tweet_count` and `total_tweet_count
 models carry the document's names and accept the guides' spelling through
 `validation_alias` (`models.py`), so a page reads the same either way and `dump_upstream`
 writes the document's names.
+
+Query operators. The OpenAPI document describes the `query` parameter of the searches and
+the counts and the `conversation_id` field of a post, not the operators a query is made
+of; `pages/search-operators.md` (snapshot of 2026-10-30) lists them. The queries this
+package builds or admits use four: `from:` (line 44, "Matches Posts from a specific
+user"), `conversation_id:` (line 64, "Matches Posts in a conversation thread"),
+`is:retweet` and `is:reply` (lines 101 and 102, "Conjunction required", negated with `-`,
+line 155): `get_conversation_posts`' query, the recorder's guard and the probe's counts
+queries (`from:<handle>` alone or with `-is:retweet -is:reply`).
 
 The recorded refusals add to the shapes above: the wrong key's 401 has `type:
 about:blank` and `status`, and a 400 carries both shapes, the problem and an `errors` list
