@@ -24,10 +24,10 @@ deduplicated (``pages/pricing.md``); X reported ``x-rate-limit-limit: 300``, as
 
 from datetime import datetime
 
-from xippios.core import InvalidRequestError, parse
+from xippios.core import parse
 
 from xippios.x._client import SOURCE, client
-from xippios.x.api._query import chosen, instant, text
+from xippios.x.api._query import at_most_one, chosen, instant, text
 from xippios.x.models import GetPostsCountsAllResponse, Granularity
 
 __all__ = ["get_posts_counts_all"]
@@ -73,11 +73,7 @@ async def get_posts_counts_all(
         params["start_time"] = instant("start_time", start_time)
     if end_time is not None:
         params["end_time"] = instant("end_time", end_time)
-    if next_token is not None and pagination_token is not None:
-        raise InvalidRequestError(
-            "give next_token or pagination_token, not both: at most one may be provided",
-            source=SOURCE,
-        )
+    at_most_one(next_token=next_token, pagination_token=pagination_token)
     if next_token is not None:
         params["next_token"] = text("next_token", next_token)
     if pagination_token is not None:

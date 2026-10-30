@@ -1,0 +1,113 @@
+{
+  "recorded_at": "2026-10-29T20:22:27.787443Z",
+  "request": {
+    "body": null,
+    "body_base64": false,
+    "content_type": null,
+    "method": "GET",
+    "url": "https://api.x.com/2/lists/715919216927322112/members?max_results=10&user.fields=created_at%2Cdescription%2Clocation%2Cprotected%2Cpublic_metrics%2Cverified_type"
+  },
+  "response": {
+    "body": "{\"data\":[{\"created_at\":\"2015-01-12T22:08:49.000Z\",\"description\":\"[description rewritten]\",\"id\":\"2975391639\",\"location\":\"[location rewritten]\",\"name\":\"[name rewritten]\",\"protected\":false,\"public_metrics\":{\"followers_count\":13896,\"following_count\":118,\"like_count\":714,\"listed_count\":304,\"media_count\":410,\"tweet_count\":901},\"username\":\"[username rewritten]\",\"verified_type\":\"none\"},{\"created_at\":\"2013-04-02T15:41:53.000Z\",\"description\":\"[description rewritten]\",\"id\":\"1322736086\",\"location\":\"[location rewritten]\",\"name\":\"[name rewritten]\",\"protected\":false,\"public_metrics\":{\"followers_count\":3974,\"following_count\":495,\"like_count\":5216,\"listed_count\":81,\"media_count\":598,\"tweet_count\":4103},\"username\":\"[username rewritten]\",\"verified_type\":\"none\"},{\"created_at\":\"2010-11-05T18:13:55.000Z\",\"description\":\"[description rewritten]\",\"id\":\"212304085\",\"location\":\"[location rewritten]\",\"name\":\"[name rewritten]\",\"protected\":false,\"public_metrics\":{\"followers_count\":332507,\"following_count\":180,\"like_count\":8638,\"listed_count\":1809,\"media_count\":10561,\"tweet_count\":17726},\"username\":\"[username rewritten]\",\"verified_type\":\"government\"},{\"created_at\":\"2009-08-08T13:36:52.000Z\",\"description\":\"[description rewritten]\",\"id\":\"63966574\",\"location\":\"[location rewritten]\",\"name\":\"[name rewritten]\",\"protected\":false,\"public_metrics\":{\"followers_count\":85891,\"following_count\":372,\"like_count\":1794,\"listed_count\":999,\"media_count\":2813,\"tweet_count\":8445},\"username\":\"[username rewritten]\",\"verified_type\":\"none\"},{\"created_at\":\"2009-06-05T20:51:01.000Z\",\"description\":\"[description rewritten]\",\"id\":\"44992488\",\"location\":\"[location rewritten]\",\"name\":\"[name rewritten]\",\"protected\":false,\"public_metrics\":{\"followers_count\":1027387,\"following_count\":424,\"like_count\":8471,\"listed_count\":2572,\"media_count\":3675,\"tweet_count\":8248},\"username\":\"[username rewritten]\",\"verified_type\":\"government\"},{\"created_at\":\"2009-06-05T20:16:18.000Z\",\"description\":\"[description rewritten]\",\"id\":\"44984439\",\"location\":\"[location rewritten]\",\"name\":\"[name rewritten]\",\"protected\":false,\"public_metrics\":{\"followers_count\":179341,\"following_count\":745,\"like_count\":2437,\"listed_count\":1644,\"media_count\":1276,\"tweet_count\":4030},\"username\":\"[username rewritten]\",\"verified_type\":\"none\"},{\"created_at\":\"2009-04-18T13:53:21.000Z\",\"description\":\"[description rewritten]\",\"id\":\"32887168\",\"location\":\"[location rewritten]\",\"name\":\"[name rewritten]\",\"protected\":false,\"public_metrics\":{\"followers_count\":364687,\"following_count\":299,\"like_count\":1419,\"listed_count\":1680,\"media_count\":1531,\"tweet_count\":6088},\"username\":\"[username rewritten]\",\"verified_type\":\"government\"},{\"created_at\":\"2009-01-07T16:26:35.000Z\",\"description\":\"[description rewritten]\",\"id\":\"18726942\",\"location\":\"[location rewritten]\",\"name\":\"[name rewritten]\",\"protected\":false,\"public_metrics\":{\"followers_count\":745246,\"following_count\":24,\"like_count\":176,\"listed_count\":2525,\"media_count\":1617,\"tweet_count\":9443},\"username\":\"[username rewritten]\",\"verified_type\":\"government\"}],\"meta\":{\"result_count\":8}}",
+    "body_base64": false,
+    "headers": [
+      [
+        "date",
+        "Thu, 29 Oct 2026 20:22:27 GMT"
+      ],
+      [
+        "content-type",
+        "application/json; charset=utf-8"
+      ],
+      [
+        "perf",
+        "7402827104"
+      ],
+      [
+        "server",
+        "cloudflare envoy"
+      ],
+      [
+        "set-cookie",
+        "REDACTED"
+      ],
+      [
+        "set-cookie",
+        "REDACTED"
+      ],
+      [
+        "api-version",
+        "2.173"
+      ],
+      [
+        "cache-control",
+        "no-cache, no-store, max-age=0"
+      ],
+      [
+        "x-access-level",
+        "read"
+      ],
+      [
+        "x-frame-options",
+        "SAMEORIGIN"
+      ],
+      [
+        "x-transaction-id",
+        "d7ce2796e110be13"
+      ],
+      [
+        "x-xss-protection",
+        "0"
+      ],
+      [
+        "x-rate-limit-limit",
+        "900"
+      ],
+      [
+        "x-rate-limit-reset",
+        "1793306246"
+      ],
+      [
+        "content-disposition",
+        "attachment; filename=json.json"
+      ],
+      [
+        "x-content-type-options",
+        "nosniff"
+      ],
+      [
+        "x-rate-limit-remaining",
+        "899"
+      ],
+      [
+        "x-response-time",
+        "106"
+      ],
+      [
+        "origin-cf-ray",
+        "a524e471e9b7be70-ZRH"
+      ],
+      [
+        "strict-transport-security",
+        "max-age=631138519; includeSubdomains"
+      ],
+      [
+        "x-served-by",
+        "t4_a"
+      ],
+      [
+        "cf-cache-status",
+        "DYNAMIC"
+      ],
+      [
+        "vary",
+        "accept-encoding"
+      ],
+      [
+        "cf-ray",
+        "a524e471e9b7be70-ZRH"
+      ]
+    ],
+    "status": 200
+  }
+}

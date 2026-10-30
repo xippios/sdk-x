@@ -5,19 +5,20 @@ Run from the repository root, the key in the environment through direnv::
     direnv exec ~/github/sdk uv run scripts/record_fixture.py <wrapper> <case> key=value ...
     uv run scripts/record_fixture.py get_users_by_usernames wrong_key usernames=FAO --wrong-key
 
-``<wrapper>`` is one of the four endpoint wrappers (``WRAPPERS``); the fixture lands at
+``<wrapper>`` is one of the eight endpoint wrappers (``WRAPPERS``); the fixture lands at
 ``tests/fixtures/<wrapper>/<case>.json`` and is never overwritten. ``key=value`` pairs are
 the query parameters under the names the wire takes (``user.fields``, ``expansions``),
-sent in the order given; ``id`` of ``get_users_posts`` fills the path. ``--wrong-key``
-sends ``Bearer not-a-valid-key`` through a throwaway client instead of the key, to record
-the 401, which bills nothing.
+sent in the order given; ``id`` of ``get_users_posts``, ``get_lists_posts`` and
+``get_lists_members`` fills the path. ``--wrong-key`` sends ``Bearer not-a-valid-key``
+through a throwaway client instead of the key, to record the 401, which bills nothing.
 
 Spend. Before the request the recorder prints its estimate, an upper bound at the prices
 of ``docs/upstream/pages/pricing.md`` (snapshot of 2026-10-29): 0.005 USD a post and
-0.010 USD a user returned, 0.010 USD a ``GET /2/tweets/counts/all`` request; a 4xx bills
-nothing, and a resource read earlier in the same UTC day is not billed again. It records
-through a client that never retries (``RetryPolicy(max_attempts=1)``), so a 5xx spends no
-second request.
+0.010 USD a user returned, a List's posts and members counted as posts and users, 0.010
+USD a ``GET /2/tweets/counts/all`` request and 0.005 USD a ``GET /2/tweets/counts/recent``
+request; a 4xx bills nothing, and a resource read earlier in the same UTC day is not
+billed again. It records through a client that never retries
+(``RetryPolicy(max_attempts=1)``), so a 5xx spends no second request.
 
 The accounts. D1, decided by Johannes on 2026-10-29, records fixtures from @XDevelopers,
 @USDA and @FAO only (``ACCOUNTS``). The recorder's guard covers what a request names, its
@@ -33,8 +34,19 @@ usernames, ids and query, and refuses before any request one that names another 
   fixtures give them: a user's ``most_recent_post_id`` (or ``most_recent_tweet_id``,
   ``pinned_post_id``, ``pinned_tweet_id``) in ``get_users_by_usernames``, a post's ``id``
   in ``get_users_posts``.
-- ``get_posts_counts_all``: ``query`` names one of the three with ``from:`` and no other
-  account (``from:``, ``to:``, ``retweets_of:`` or ``@``).
+- ``get_posts_counts_all`` and ``get_posts_counts_recent``: ``query`` names one of the
+  three with ``from:`` and no other account (``from:``, ``to:``, ``retweets_of:`` or
+  ``@``). A count carries no X Content, only numbers.
+- ``search_posts_recent``: ``query`` is ``from:<one of the three>``, alone or followed by
+  ``-is:retweet``, ``-is:reply`` or both, operators in lower case, and nothing else: a
+  search returns the posts it matches, so a query that admitted any other term (``OR``,
+  a keyword, ``lang:``) could bring other accounts' posts. Parentheses are not read:
+  terms joined by AND alone narrow ``from:`` however they are grouped, and an unbalanced
+  one is the case for X's HTTP 400.
+- ``get_lists_posts`` and ``get_lists_members``: ``id`` is one of ``LISTS``, Lists owned
+  by one of the three, read from ``GET /2/users/{id}/owned_lists`` on 2026-10-29.
+  ``--unknown`` admits one other List id, for the not-found case; the answer is refused if
+  it returns posts or users.
 
 An expansion brings other objects into an answer, and a field can carry values that
 describe other accounts. So the recorder also refuses, before any request, every
@@ -44,10 +56,13 @@ describe other accounts. So the recorder also refuses, before any request, every
   and no user object. ``referenced_posts`` is refused (Johannes, 2026-10-29): it brings the
   posts a post reposts, quotes or replies to, whoever wrote them.
   ``get_posts_by_ids/most_recent_three`` was re-recorded without it on 2026-10-29, and no
-  fixture carries another account's object.
+  fixture carries another account's object but the two List fixtures, whose members and
+  posts are other accounts' by nature (row 330, item 10).
 - ``user.fields``: the probe's plan with ``id``, ``name``, ``username`` and ``verified``.
   ``url`` is among them, the requested users' own: the user objects of an answer are the
-  requested users' only.
+  requested users' only. ``get_lists_members`` is the exception (``NOT_ADMITTED_FOR``):
+  its user objects are the List's members, other accounts, whose ``url`` the rewrite does
+  not cover, so it refuses ``url``.
 - ``post.fields``: the plan with ``id`` and ``text``.
 
 The refusals exclude the values that describe other accounts and that the rewrite does not
@@ -118,8 +133,18 @@ _ACCOUNTS = frozenset(name.lower() for name in ACCOUNTS)
 PRICE_POST = 0.005
 PRICE_USER = 0.010
 PRICE_COUNTS_ALL = 0.010
+PRICE_COUNTS_RECENT = 0.005
 """USD at ``docs/upstream/pages/pricing.md`` (snapshot of 2026-10-29): Posts: Read and
-User: Read per resource returned, Counts: All per request."""
+User: Read per resource returned, Counts: All and Counts: Recent per request."""
+
+LISTS = {"715919216927322112": "XDevelopers"}
+"""The Lists fixtures are recorded from, by id, with the account that owns each.
+
+Read from ``GET /2/users/2244994945/owned_lists`` (@XDevelopers) on 2026-10-29: the first
+of the three accounts read, it owns three public Lists. That answer is not kept, since
+``owned_lists`` is not wrapped. A List's members are other accounts, whose free text the
+rewrite replaces (D1).
+"""
 
 PLACEHOLDERS = {
     "text": "[text rewritten]",
@@ -155,9 +180,15 @@ ADMITTED = {
 """The values the recorder sends for these parameters; any other is refused (docstring).
 
 The one expansion brings a post of the requested user and no user object, so an answer's
-objects are the requested users' and their posts only (Johannes, 2026-10-29); the field
-values carry nothing of other accounts the rewrite leaves.
+objects are the requested users' and their posts only (Johannes, 2026-10-29), except in
+the List wrappers' answers, whose posts and users are the List's members', other accounts:
+there ``NOT_ADMITTED_FOR`` refuses ``url`` for ``get_lists_members``, and the field values
+admitted carry nothing of other accounts the rewrite leaves but their ids, creation dates
+and public metrics, kept as sent (row 330, item 10).
 """
+NOT_ADMITTED_FOR = {"get_lists_members": {"user.fields": frozenset({"url"})}}
+"""Values of ``ADMITTED`` a wrapper refuses: a List's members are other accounts, and a
+user's ``url`` is admitted for the requested users only (docstring)."""
 _POST_ID_FIELDS = (
     "most_recent_post_id",
     "most_recent_tweet_id",
@@ -215,8 +246,50 @@ WRAPPERS = {
             {"query", "start_time", "end_time", "next_token", "pagination_token", "granularity"}
         ),
     ),
+    "search_posts_recent": Operation(
+        "searchPostsRecent",
+        "/tweets/search/recent",
+        frozenset(
+            {
+                "query",
+                "max_results",
+                "next_token",
+                "pagination_token",
+                "start_time",
+                "end_time",
+                "since_id",
+                "until_id",
+                "sort_order",
+                "post.fields",
+                "expansions",
+                "user.fields",
+            }
+        ),
+    ),
+    "get_posts_counts_recent": Operation(
+        "getPostsCountsRecent",
+        "/tweets/counts/recent",
+        frozenset(
+            {"query", "start_time", "end_time", "next_token", "pagination_token", "granularity"}
+        ),
+    ),
+    "get_lists_posts": Operation(
+        "getListsPosts",
+        "/lists/{id}/tweets",
+        frozenset(
+            {"id", "max_results", "pagination_token", "post.fields", "expansions", "user.fields"}
+        ),
+    ),
+    "get_lists_members": Operation(
+        "getListsMembers",
+        "/lists/{id}/members",
+        frozenset(
+            {"id", "max_results", "pagination_token", "user.fields", "expansions", "post.fields"}
+        ),
+    ),
 }
-"""The four wrappers the recorder serves; any other is refused."""
+"""The eight wrappers the recorder serves; any other is refused."""
+_LIST_WRAPPERS = ("get_lists_posts", "get_lists_members")
 
 
 def parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
@@ -236,7 +309,10 @@ def parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     parser.add_argument(
         "--unknown",
         action="store_true",
-        help="admit one username or user id outside the three accounts, for an error case",
+        help=(
+            "admit one username, user id or List id outside the three accounts and LISTS, "
+            "for an error case"
+        ),
     )
     args = parser.parse_intermixed_args(argv)
     if not _CASE.fullmatch(args.case):
@@ -293,18 +369,36 @@ def account_post_ids() -> frozenset[str]:
 
 
 _USER_OPERAND = re.compile(r"(?i)(?:\b(from|to|retweets_of):\s*|@)([A-Za-z0-9_]+)")
+_SEARCH_FROM = re.compile(r"from:([A-Za-z0-9_]{1,15})")
+_SEARCH_NARROWING = frozenset({"-is:retweet", "-is:reply"})
+
+
+def search_query_admitted(query: str) -> bool:
+    """``from:<one of the three>``, then ``-is:retweet`` and ``-is:reply`` only (docstring).
+
+    Parentheses are read as spaces: these terms joined by AND narrow ``from:`` however they
+    are grouped, and an unbalanced parenthesis is X's HTTP 400.
+    """
+    first, *rest = query.replace("(", " ").replace(")", " ").split() or [""]
+    found = _SEARCH_FROM.fullmatch(first)
+    return (
+        found is not None
+        and found.group(1).lower() in _ACCOUNTS
+        and all(term in _SEARCH_NARROWING for term in rest)
+    )
 
 
 def refusal(wrapper: str, params: dict[str, str], *, unknown: bool) -> str | None:
     """Why the request must not be sent, else ``None`` (the accounts of D1, the names)."""
     operation = WRAPPERS.get(wrapper)
     if operation is None:
-        return f"{wrapper!r} is not one of the four wrappers ({', '.join(WRAPPERS)})"
+        return f"{wrapper!r} is not one of the eight wrappers ({', '.join(WRAPPERS)})"
     stray = sorted(set(params) - operation.params)
     if stray:
         taken = ", ".join(sorted(operation.params))
         return f"{wrapper} takes no {', '.join(stray)}; it takes {taken}"
-    for name, admitted in ADMITTED.items():
+    for name, values in ADMITTED.items():
+        admitted = values - NOT_ADMITTED_FOR.get(wrapper, {}).get(name, frozenset())
         refused = [value for value in _csv(params.get(name)) if value not in admitted]
         if refused:
             return (
@@ -335,12 +429,26 @@ def refusal(wrapper: str, params: dict[str, str], *, unknown: bool) -> str | Non
                 f"ids are recorded for posts of {', '.join(ACCOUNTS)} only, as the recorded "
                 f"fixtures give them; {len(others)} of the ids are not among them"
             )
-    if wrapper == "get_posts_counts_all":
+    if wrapper in ("get_posts_counts_all", "get_posts_counts_recent"):
         operands = _USER_OPERAND.findall(params.get("query", ""))
         named = {name.lower() for _, name in operands}
         froms = {name.lower() for operator, name in operands if operator.lower() == "from"}
         if not froms or not named <= _ACCOUNTS:
             return f"query names one of {', '.join(ACCOUNTS)} with from: and no other account"
+    if wrapper == "search_posts_recent" and not search_query_admitted(params.get("query", "")):
+        return (
+            f"query is from:<one of {', '.join(ACCOUNTS)}>, alone or with -is:retweet and "
+            "-is:reply, and nothing else: a search returns the posts it matches"
+        )
+    if wrapper in _LIST_WRAPPERS:
+        list_id = params.get("id", "")
+        if not _ID.fullmatch(list_id):
+            return f"{wrapper} needs id=<a List id of up to 19 digits>"
+        if list_id not in LISTS and not unknown:
+            return (
+                f"id is not one of the Lists of {', '.join(ACCOUNTS)} in LISTS "
+                f"({', '.join(LISTS)}); --unknown admits another, for an error case"
+            )
     return None
 
 
@@ -350,10 +458,15 @@ def estimate(wrapper: str, params: dict[str, str], *, wrong_key: bool) -> tuple[
         return 0.0, []
     if wrapper == "get_posts_counts_all":
         return PRICE_COUNTS_ALL, []
+    if wrapper == "get_posts_counts_recent":
+        return PRICE_COUNTS_RECENT, []
     expansions = set(_csv(params.get("expansions")))
     uncounted: list[str] = []
-    if wrapper == "get_users_by_usernames":
-        users = len(_csv(params.get("usernames")))
+    if wrapper in ("get_users_by_usernames", "get_lists_members"):
+        if wrapper == "get_users_by_usernames":
+            users = len(_csv(params.get("usernames")))
+        else:
+            users = int(params.get("max_results", "100"))  # the document's default
         cost = users * PRICE_USER
         for expansion in sorted(expansions):
             if expansion in _POST_ID_FIELDS:
@@ -363,6 +476,8 @@ def estimate(wrapper: str, params: dict[str, str], *, wrong_key: bool) -> tuple[
         return cost, uncounted
     if wrapper == "get_posts_by_ids":
         posts = len(_csv(params.get("ids")))
+    elif wrapper == "get_lists_posts":
+        posts = int(params.get("max_results", "100"))  # the document's default
     else:
         posts = int(params.get("max_results", "10"))
     cost = posts * PRICE_POST
@@ -468,6 +583,8 @@ def unknown_answered(wrapper: str, fixture: Fixture) -> str | None:
             return "the unknown username belongs to an account; nothing is written"
     if wrapper == "get_users_posts" and data:
         return "the unknown id has posts; nothing is written"
+    if wrapper in _LIST_WRAPPERS and data:
+        return "the unknown List id names a List with posts or members; nothing is written"
     return None
 
 

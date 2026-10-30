@@ -1,0 +1,113 @@
+{
+  "recorded_at": "2026-10-29T20:22:21.039353Z",
+  "request": {
+    "body": null,
+    "body_base64": false,
+    "content_type": null,
+    "method": "GET",
+    "url": "https://api.x.com/2/lists/715919216927322112/tweets?max_results=10&post.fields=created_at%2Clang%2Cpublic_metrics%2Cconversation_id"
+  },
+  "response": {
+    "body": "{\"data\":[{\"conversation_id\":\"2115579777880887771\",\"created_at\":\"2026-10-28T23:01:39.000Z\",\"edit_history_post_ids\":[\"2115579777880887771\"],\"id\":\"2115579777880887771\",\"lang\":\"en\",\"public_metrics\":{\"bookmark_count\":5,\"impression_count\":12172,\"like_count\":255,\"quote_count\":0,\"reply_count\":8,\"repost_count\":30},\"text\":\"[text rewritten]\"},{\"conversation_id\":\"2114812391263551863\",\"created_at\":\"2026-10-26T20:12:20.000Z\",\"edit_history_post_ids\":[\"2114812206345056633\",\"2114812391263551863\"],\"id\":\"2114812391263551863\",\"lang\":\"en\",\"public_metrics\":{\"bookmark_count\":8,\"impression_count\":10191,\"like_count\":346,\"quote_count\":0,\"reply_count\":10,\"repost_count\":62},\"text\":\"[text rewritten]\"},{\"conversation_id\":\"2114806822263545898\",\"created_at\":\"2026-10-26T19:50:12.000Z\",\"edit_history_post_ids\":[\"2114806822263545898\"],\"id\":\"2114806822263545898\",\"lang\":\"en\",\"public_metrics\":{\"bookmark_count\":0,\"impression_count\":761,\"like_count\":1,\"quote_count\":0,\"reply_count\":0,\"repost_count\":0},\"text\":\"[text rewritten]\"},{\"conversation_id\":\"2114784386814005672\",\"created_at\":\"2026-10-26T18:21:03.000Z\",\"edit_history_post_ids\":[\"2114784386814005672\"],\"id\":\"2114784386814005672\",\"lang\":\"en\",\"public_metrics\":{\"bookmark_count\":41,\"impression_count\":16960,\"like_count\":438,\"quote_count\":6,\"reply_count\":12,\"repost_count\":63},\"text\":\"[text rewritten]\"},{\"conversation_id\":\"2113963875657748921\",\"created_at\":\"2026-10-24T12:00:38.000Z\",\"edit_history_post_ids\":[\"2113963875657748921\"],\"id\":\"2113963875657748921\",\"lang\":\"en\",\"public_metrics\":{\"bookmark_count\":1,\"impression_count\":1389,\"like_count\":37,\"quote_count\":1,\"reply_count\":2,\"repost_count\":4},\"text\":\"[text rewritten]\"},{\"conversation_id\":\"2113714639401828786\",\"created_at\":\"2026-10-23T19:30:15.000Z\",\"edit_history_post_ids\":[\"2113714639401828786\"],\"id\":\"2113714639401828786\",\"lang\":\"en\",\"public_metrics\":{\"bookmark_count\":0,\"impression_count\":855,\"like_count\":14,\"quote_count\":0,\"reply_count\":0,\"repost_count\":2},\"text\":\"[text rewritten]\"},{\"conversation_id\":\"2113708786443812880\",\"created_at\":\"2026-10-23T19:07:00.000Z\",\"edit_history_post_ids\":[\"2113708786443812880\"],\"id\":\"2113708786443812880\",\"lang\":\"en\",\"public_metrics\":{\"bookmark_count\":0,\"impression_count\":535,\"like_count\":0,\"quote_count\":0,\"reply_count\":0,\"repost_count\":48},\"text\":\"[text rewritten]\"},{\"conversation_id\":\"2113359841645178964\",\"created_at\":\"2026-10-22T20:00:25.000Z\",\"edit_history_post_ids\":[\"2113359841645178964\"],\"id\":\"2113359841645178964\",\"lang\":\"en\",\"public_metrics\":{\"bookmark_count\":1,\"impression_count\":1916,\"like_count\":73,\"quote_count\":2,\"reply_count\":2,\"repost_count\":7},\"text\":\"[text rewritten]\"},{\"conversation_id\":\"2113340091393335753\",\"created_at\":\"2026-10-22T18:41:56.000Z\",\"edit_history_post_ids\":[\"2113340091393335753\"],\"id\":\"2113340091393335753\",\"lang\":\"en\",\"public_metrics\":{\"bookmark_count\":8,\"impression_count\":11937,\"like_count\":161,\"quote_count\":2,\"reply_count\":6,\"repost_count\":24},\"text\":\"[text rewritten]\"}],\"meta\":{\"next_token\":\"7140dibdnow9c7btwp0g73uhxcbnxtlacbrlpiv5qwlyr\",\"result_count\":9}}",
+    "body_base64": false,
+    "headers": [
+      [
+        "date",
+        "Thu, 29 Oct 2026 20:22:18 GMT"
+      ],
+      [
+        "content-type",
+        "application/json; charset=utf-8"
+      ],
+      [
+        "perf",
+        "7402827104"
+      ],
+      [
+        "server",
+        "cloudflare envoy"
+      ],
+      [
+        "set-cookie",
+        "REDACTED"
+      ],
+      [
+        "set-cookie",
+        "REDACTED"
+      ],
+      [
+        "api-version",
+        "2.173"
+      ],
+      [
+        "cache-control",
+        "no-cache, no-store, max-age=0"
+      ],
+      [
+        "x-access-level",
+        "read"
+      ],
+      [
+        "x-frame-options",
+        "SAMEORIGIN"
+      ],
+      [
+        "x-transaction-id",
+        "a0d797ca269a04bf"
+      ],
+      [
+        "x-xss-protection",
+        "0"
+      ],
+      [
+        "x-rate-limit-limit",
+        "900"
+      ],
+      [
+        "x-rate-limit-reset",
+        "1793306237"
+      ],
+      [
+        "content-disposition",
+        "attachment; filename=json.json"
+      ],
+      [
+        "x-content-type-options",
+        "nosniff"
+      ],
+      [
+        "x-rate-limit-remaining",
+        "899"
+      ],
+      [
+        "x-response-time",
+        "338"
+      ],
+      [
+        "origin-cf-ray",
+        "a524e4398d9e28be-ZRH"
+      ],
+      [
+        "strict-transport-security",
+        "max-age=631138519; includeSubdomains"
+      ],
+      [
+        "x-served-by",
+        "t4_a"
+      ],
+      [
+        "cf-cache-status",
+        "DYNAMIC"
+      ],
+      [
+        "vary",
+        "accept-encoding"
+      ],
+      [
+        "cf-ray",
+        "a524e4398d9e28be-ZRH"
+      ]
+    ],
+    "status": 200
+  }
+}

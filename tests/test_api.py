@@ -1,10 +1,12 @@
-"""Replay tests for the four endpoint wrappers (layer 1), one per recorded case.
+"""Replay tests for the eight endpoint wrappers (layer 1), one per recorded case.
 
-The fixtures were recorded on 2026-10-29 from @XDevelopers, @USDA and @FAO with the free
-text rewritten by the recorder (D1, ``scripts/record_fixture.py``), so every ``text`` and
-``description`` reads as its placeholder. Each test calls the wrapper with the parameters
-the fixture was recorded with and compares what was sent with ``sent_query``; a page is
-dumped with ``dump_upstream`` and read back to the same model, as the probe's cache will.
+The fixtures were recorded on 2026-10-29 from @XDevelopers, @USDA and @FAO and from a List
+@XDevelopers owns, with the free text rewritten by the recorder (D1,
+``scripts/record_fixture.py``), so every ``text`` and ``description`` reads as its
+placeholder, and so do the ``name``, ``username`` and ``location`` of the List's members.
+Each test calls the wrapper with the parameters the fixture was recorded with and compares
+what was sent with ``sent_query``; a page is dumped with ``dump_upstream`` and read back to
+the same model, as the probe's cache will.
 """
 
 from datetime import UTC, datetime, timedelta, timezone
@@ -25,12 +27,18 @@ from xippios.core.testing import (
 from xippios.x import api
 from xippios.x.api._query import instant
 from xippios.x.models import (
+    GetListsMembersResponse,
+    GetListsPostsResponse,
     GetPostsByIdsResponse,
     GetPostsCountsAllResponse,
+    GetPostsCountsRecentResponse,
     GetUsersByUsernamesResponse,
     GetUsersPostsResponse,
     Granularity,
+    PostExpansion,
     PostField,
+    SearchPostsRecentResponse,
+    SortOrder,
     UserExpansion,
     UserField,
 )
@@ -55,8 +63,12 @@ PLAN_POST_FIELDS = [
     PostField.PUBLIC_METRICS,
     PostField.CONVERSATION_ID,
 ]
+MEMBER_USER_FIELDS = [field for field in PLAN_USER_FIELDS if field is not UserField.URL]
+"""The plan's user fields but ``url``, which the recorder refuses for a List's members."""
 ACCOUNTS = {"2244994945": "XDevelopers", "61853389": "USDA", "19649135": "FAO"}
 START = datetime(2026, 7, 31, tzinfo=UTC)
+LIST_ID = "715919216927322112"
+"""The List of @XDevelopers' the List fixtures are recorded from (``record_fixture.LISTS``)."""
 
 
 def recorded(wrapper: str, case: str) -> dict[str, str]:
@@ -295,6 +307,203 @@ async def test_posts_counts_all_refuses_an_unknown_granularity(
     assert route.call_count == 0
 
 
+async def test_search_posts_recent(replay_fixture: ReplayFixture) -> None:
+    """Ten @USDA posts, newest first, the page's ids in ``meta`` and a ``next_token``; an
+    edited post's earlier version is a post of its own, with the same edit history."""
+    route = replay_fixture("search_posts_recent", "usda_ten")
+    page = await api.search_posts_recent("from:USDA", max_results=10, post_fields=PLAN_POST_FIELDS)
+    assert sent_query(route) == recorded("search_posts_recent", "usda_ten")
+    assert httpx.URL(sent_urls(route)[-1]).path == "/2/tweets/search/recent"
+    assert page.data is not None
+    assert page.meta is not None
+    assert len(page.data) == page.meta.result_count == 10
+    assert page.meta.newest_id == page.data[0].id
+    assert page.meta.oldest_id == page.data[-1].id
+    assert page.meta.next_token
+    times = [post.created_at for post in page.data if post.created_at is not None]
+    assert times == sorted(times, reverse=True), "newest first"
+    assert {post.text for post in page.data} == {TEXT}
+    edited = {post.id: post.edit_history_post_ids for post in page.data}
+    assert (
+        edited["2115805884466995409"]
+        == edited["2115806101480337475"]
+        == [
+            "2115805884466995409",
+            "2115806101480337475",
+        ]
+    )
+    assert page.data[0].public_metrics is not None
+    assert page.data[0].public_metrics.repost_count == 58
+    assert page.includes is None
+    assert page.errors is None
+    assert SearchPostsRecentResponse.model_validate(page.dump_upstream()) == page
+
+
+async def test_search_posts_recent_second_page(replay_fixture: ReplayFixture) -> None:
+    """``next_token`` leads to the ten posts before; the scrub keeps the token out of the
+    recorded URL and ``sent_query`` alike."""
+    first = load_fixture(fixture_path(FIXTURES, "search_posts_recent", "usda_ten"))
+    meta = SearchPostsRecentResponse.model_validate_json(first.response.body).meta
+    assert meta is not None
+    assert meta.next_token is not None
+    assert meta.oldest_id is not None
+    route = replay_fixture("search_posts_recent", "usda_ten_page_2")
+    page = await api.search_posts_recent(
+        "from:USDA", max_results=10, post_fields=PLAN_POST_FIELDS, next_token=meta.next_token
+    )
+    assert sent_query(route) == recorded("search_posts_recent", "usda_ten_page_2")
+    assert sent_query(route)["next_token"] == "REDACTED"
+    assert page.data is not None
+    assert len(page.data) == 10
+    assert all(int(post.id) < int(meta.oldest_id) for post in page.data)
+    assert page.meta is not None
+    assert page.meta.next_token
+
+
+async def test_search_posts_recent_sends_the_documents_names(
+    replay_fixture: ReplayFixture,
+) -> None:
+    """The parameters no recording sent go out under the document's names and forms; the
+    answer is the recorded page, mounted on its path."""
+    route = replay_fixture("search_posts_recent", "usda_ten")
+    await api.search_posts_recent(
+        "from:USDA -is:retweet -is:reply",
+        max_results=100,
+        pagination_token="page-2",
+        start_time=datetime(2026, 10, 27, tzinfo=UTC),
+        until_id="2115854906124861473",
+        sort_order=SortOrder.RELEVANCY,
+        expansions=[PostExpansion.AUTHOR_ID],
+        user_fields=[UserField.CREATED_AT],
+    )
+    assert sent_query(route) == {
+        "query": "from:USDA -is:retweet -is:reply",
+        "max_results": "100",
+        "pagination_token": "REDACTED",
+        "start_time": "2026-10-27T00:00:00Z",
+        "until_id": "2115854906124861473",
+        "sort_order": "relevancy",
+        "expansions": "author_id",
+        "user.fields": "created_at",
+    }
+
+
+async def test_search_posts_recent_refused_query(replay_fixture: ReplayFixture) -> None:
+    """A query X cannot parse is its HTTP 400, ``InvalidRequestError`` with its words."""
+    route = replay_fixture("search_posts_recent", "unbalanced_parenthesis")
+    with pytest.raises(InvalidRequestError, match="mismatched input") as raised:
+        await api.search_posts_recent("(from:USDA")
+    assert "HTTP 400 from GET /2/tweets/search/recent" in str(raised.value)
+    assert sent_query(route) == recorded("search_posts_recent", "unbalanced_parenthesis")
+    assert route.call_count == 1
+
+
+async def test_posts_counts_recent_by_day(replay_fixture: ReplayFixture) -> None:
+    """Eight buckets over the seven days up to the request, oldest first, the first and
+    the last partial days; ``tweet_count`` read as ``post_count``, no ``next_token``."""
+    route = replay_fixture("get_posts_counts_recent", "usda_by_day")
+    page = await api.get_posts_counts_recent("from:USDA", granularity=Granularity.DAY)
+    assert sent_query(route) == recorded("get_posts_counts_recent", "usda_by_day")
+    assert page.data is not None
+    assert len(page.data) == 8
+    first, *days, last = page.data
+    assert all(bucket.end - bucket.start == timedelta(days=1) for bucket in days)
+    assert [b.start for b in page.data] == sorted(b.start for b in page.data)
+    assert last.end - first.start == timedelta(days=7)
+    assert first.end == datetime(2026, 10, 23, tzinfo=UTC)
+    assert last.start == datetime(2026, 10, 29, tzinfo=UTC)
+    assert page.meta is not None
+    assert page.meta.total_post_count == sum(bucket.post_count for bucket in page.data) == 56
+    assert page.meta.next_token is None
+    assert GetPostsCountsRecentResponse.model_validate(page.dump_upstream()) == page
+
+
+async def test_posts_counts_recent_refuses_an_unknown_granularity(
+    replay_fixture: ReplayFixture,
+) -> None:
+    """``week`` is refused before the call; X answered it with HTTP 400."""
+    route = replay_fixture("get_posts_counts_recent", "granularity_week")
+    with pytest.raises(InvalidRequestError, match="minute, hour, day"):
+        await api.get_posts_counts_recent("from:USDA", granularity="week")  # type: ignore[arg-type]
+    assert route.call_count == 0
+
+
+async def test_lists_posts(replay_fixture: ReplayFixture) -> None:
+    """Nine posts of the List's members for ten asked, newest first, with a
+    ``next_token``; their text rewritten."""
+    route = replay_fixture("get_lists_posts", "xdevelopers_list_ten")
+    page = await api.get_lists_posts(LIST_ID, max_results=10, post_fields=PLAN_POST_FIELDS)
+    assert sent_query(route) == recorded("get_lists_posts", "xdevelopers_list_ten")
+    assert httpx.URL(sent_urls(route)[-1]).path == f"/2/lists/{LIST_ID}/tweets"
+    assert page.data is not None
+    assert page.meta is not None
+    assert len(page.data) == page.meta.result_count == 9
+    assert page.meta.next_token
+    times = [post.created_at for post in page.data if post.created_at is not None]
+    assert len(times) == 9
+    assert times == sorted(times, reverse=True), "newest first"
+    assert all(post.public_metrics is not None and post.lang for post in page.data)
+    assert {post.text for post in page.data} == {TEXT}
+    assert GetListsPostsResponse.model_validate(page.dump_upstream()) == page
+
+
+async def test_lists_posts_unknown_id(replay_fixture: ReplayFixture) -> None:
+    """A List id X does not find is an HTTP 200 with a problem and no ``data``: the page."""
+    route = replay_fixture("get_lists_posts", "unknown_id")
+    page = await api.get_lists_posts("9000000000000000000", max_results=10)
+    assert sent_query(route) == recorded("get_lists_posts", "unknown_id")
+    assert page.data is None
+    assert page.errors is not None
+    (problem,) = page.errors
+    assert problem.type == "https://api.x.com/2/problems/resource-not-found"
+    assert (problem.parameter, problem.resource_id, problem.resource_type) == (
+        "id",
+        "9000000000000000000",
+        "list",
+    )
+
+
+async def test_lists_members(replay_fixture: ReplayFixture) -> None:
+    """The List's eight members on one page; every member's free text rewritten, ids,
+    times and metrics as sent, ``tweet_count`` read as ``post_count``."""
+    route = replay_fixture("get_lists_members", "xdevelopers_list_ten")
+    page = await api.get_lists_members(LIST_ID, max_results=10, user_fields=MEMBER_USER_FIELDS)
+    assert sent_query(route) == recorded("get_lists_members", "xdevelopers_list_ten")
+    assert httpx.URL(sent_urls(route)[-1]).path == f"/2/lists/{LIST_ID}/members"
+    assert page.data is not None
+    assert page.meta is not None
+    assert len(page.data) == page.meta.result_count == 8
+    assert page.meta.next_token is None
+    assert {(user.username, user.name, user.location, user.description) for user in page.data} == {
+        ("[username rewritten]", "[name rewritten]", "[location rewritten]", DESCRIPTION)
+    }
+    assert not set(ACCOUNTS) & {user.id for user in page.data}
+    assert all(user.url is None for user in page.data)
+    assert {user.verified_type for user in page.data} == {"government", "none"}
+    member = next(user for user in page.data if user.id == "212304085")
+    assert member.created_at == datetime(2010, 11, 5, 18, 13, 55, tzinfo=UTC)
+    assert member.public_metrics is not None
+    assert member.public_metrics.post_count == 17726
+    assert GetListsMembersResponse.model_validate(page.dump_upstream()) == page
+
+
+async def test_lists_members_sends_the_documents_names(replay_fixture: ReplayFixture) -> None:
+    """``pagination_token`` goes out as given, the expansion and post fields under the
+    document's names; the answer is the recorded page, mounted on its path."""
+    route = replay_fixture("get_lists_members", "xdevelopers_list_ten")
+    await api.get_lists_members(
+        LIST_ID,
+        pagination_token="1710819323648428707",
+        expansions=[UserExpansion.MOST_RECENT_POST_ID],
+        post_fields=[PostField.CREATED_AT],
+    )
+    assert sent_query(route) == {
+        "pagination_token": "REDACTED",
+        "expansions": "most_recent_post_id",
+        "post.fields": "created_at",
+    }
+
+
 @pytest.mark.parametrize(
     "call",
     [
@@ -315,6 +524,29 @@ async def test_posts_counts_all_refuses_an_unknown_granularity(
         lambda: api.get_posts_counts_all(""),
         lambda: api.get_posts_counts_all("x" * 4097),
         lambda: api.get_posts_counts_all("from:USDA", next_token="a", pagination_token="b"),
+        lambda: api.search_posts_recent(""),
+        lambda: api.search_posts_recent("x" * 4097),
+        lambda: api.search_posts_recent("from:USDA", max_results=9),
+        lambda: api.search_posts_recent("from:USDA", max_results=101),
+        lambda: api.search_posts_recent("from:USDA", next_token="a", pagination_token="b"),
+        lambda: api.search_posts_recent("from:USDA", start_time=START, since_id="1"),
+        lambda: api.search_posts_recent("from:USDA", end_time=START, until_id="1"),
+        lambda: api.search_posts_recent("from:USDA", since_id="not-an-id"),
+        lambda: api.search_posts_recent("from:USDA", until_id="1" * 20),
+        lambda: api.search_posts_recent("from:USDA", sort_order="newest"),  # type: ignore[arg-type]
+        lambda: api.search_posts_recent("from:USDA", start_time=datetime(2026, 10, 27)),
+        lambda: api.get_posts_counts_recent(""),
+        lambda: api.get_posts_counts_recent("x" * 4097),
+        lambda: api.get_posts_counts_recent("from:USDA", next_token="a", pagination_token="b"),
+        lambda: api.get_lists_posts("not-a-list"),
+        lambda: api.get_lists_posts("1" * 20),
+        lambda: api.get_lists_posts(LIST_ID, max_results=0),
+        lambda: api.get_lists_posts(LIST_ID, max_results=101),
+        lambda: api.get_lists_posts(LIST_ID, pagination_token=""),
+        lambda: api.get_lists_members("not-a-list"),
+        lambda: api.get_lists_members(LIST_ID, max_results=0),
+        lambda: api.get_lists_members(LIST_ID, max_results=101),
+        lambda: api.get_lists_members(LIST_ID, user_fields=["bio"]),  # type: ignore[list-item]
     ],
 )
 async def test_values_outside_the_documents_bounds_are_refused_before_the_call(

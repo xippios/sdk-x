@@ -14,7 +14,7 @@ the family rules every source shares are in `.claude/family.md`, which the next 
 | API base URL | `https://api.x.com/2` |
 | Documentation | https://docs.x.com/x-api/introduction, snapshotted in `docs/upstream/`; an OpenAPI or Swagger document a page names is kept beside it, its URL in `SPEC_URL` of `scripts/refresh_upstream.py` (`/refresh-upstream`) |
 | Credentials | `X_API_KEY` from the environment, sent as `Authorization: Bearer`: the app's Bearer Token, which X calls the App only Access Token (`docs/upstream/pages/application-only.md`), not the console's "API Key", the OAuth 1.0a consumer key |
-| Rate limit | 60 requests per minute, burst 1; a self-imposed pace (ADR-0010 decision 1), enforced client-side in `_client.py`. X documents no per-minute limit but per-endpoint windows of 15 minutes, per app with a Bearer Token (`docs/upstream/pages/rate-limits.md`): 300 on `GET /2/users/by` and on both counts endpoints, 3,500 on `GET /2/tweets`, 10,000 on `GET /2/users/:id/tweets`, 450 on `GET /2/tweets/search/recent`, 900 on `GET /2/lists/:id/tweets` and on `GET /2/lists/:id/members`, 50 on `GET /2/usage/tweets`; a 1/sec limit only on `GET /2/tweets/search/all` and `GET /2/spaces/by/creator_ids`, which this package does not wrap. The windows are never rationed ahead by the limiter; a spent one is answered at its 429, in `_client.py`'s `classify` alone: a `RateLimitError` whose `retry_after` comes from `x-rate-limit-reset`, a Unix timestamp, with the 15-minute window as the fallback. No `QuotaPolicy`: one policy per client cannot track windows per endpoint (core gap row 318). ADR-0010 decisions 2 and 3; coordination row 304. Observed on 2026-10-29: `x-rate-limit-limit: 2000` on `GET /2/users/by` against the page's 300, and 3,500, 10,000 and 300 on the other three wrapped operations as the page lists; the headers are the authority, the page's table the documented floor. `classify`'s whole mapping: Paths, names and errors below |
+| Rate limit | 60 requests per minute, burst 1; a self-imposed pace (ADR-0010 decision 1), enforced client-side in `_client.py`. X documents no per-minute limit but per-endpoint windows of 15 minutes, per app with a Bearer Token (`docs/upstream/pages/rate-limits.md`): 300 on `GET /2/users/by` and on both counts endpoints, 3,500 on `GET /2/tweets`, 10,000 on `GET /2/users/:id/tweets`, 450 on `GET /2/tweets/search/recent`, 900 on `GET /2/lists/:id/tweets` and on `GET /2/lists/:id/members`, 50 on `GET /2/usage/tweets`; a 1/sec limit only on `GET /2/tweets/search/all` and `GET /2/spaces/by/creator_ids`, which this package does not wrap. The windows are never rationed ahead by the limiter; a spent one is answered at its 429, in `_client.py`'s `classify` alone: a `RateLimitError` whose `retry_after` comes from `x-rate-limit-reset`, a Unix timestamp, with the 15-minute window as the fallback. No `QuotaPolicy`: one policy per client cannot track windows per endpoint (core gap row 318). ADR-0010 decisions 2 and 3; coordination row 304. Observed on 2026-10-29: `x-rate-limit-limit: 2000` on `GET /2/users/by` against the page's 300, and 3,500, 10,000, 300, 450, 300, 900 and 900 on the other seven wrapped operations as the page lists; the headers are the authority, the page's table the documented floor. `classify`'s whole mapping: Paths, names and errors below |
 | Write tools | no, this package is read-only |
 
 The snapshot listed in `docs/upstream/FETCHED.md` is the reference for names, parameters and semantics.
@@ -30,10 +30,12 @@ src/xippios/x/
                    upstream's documented error shapes
   errors.py        the package's own error classes, where conventions §5 calls for one
   models.py        pydantic models mirroring upstream payloads (UpstreamModel): the OpenAPI
-                   document's User, Post, Expansions, Problem, the four responses, and its
-                   enums (UserField, PostField, UserExpansion, PostExpansion, Granularity)
+                   document's User, Post, Expansions, Problem, the eight responses, and its
+                   enums (UserField, PostField, UserExpansion, PostExpansion, Granularity,
+                   SortOrder)
   api/             endpoint wrappers, one module per upstream operation: get_users_by_usernames,
-                   get_posts_by_ids, get_users_posts, get_posts_counts_all; _query.py turns
+                   get_posts_by_ids, get_users_posts, get_posts_counts_all, search_posts_recent,
+                   get_posts_counts_recent, get_lists_posts, get_lists_members; _query.py turns
                    parameters into the text X takes and refuses values outside the bounds
   tasks.py         task functions; __all__ is what the adapters register, but BULK_TASKS,
                    the Python-only ones; MCP_CAPS any per-tool result caps
@@ -48,7 +50,7 @@ scripts/
   refresh_upstream.py    captures docs/upstream/ and writes FETCHED.md (/refresh-upstream): the
                          OpenAPI document, the docs.x.com pages in their Markdown form and
                          the X Developer Agreement and Policy
-  record_fixture.py      records one exchange of the four wrappers, X Content rewritten (D1);
+  record_fixture.py      records one exchange of the eight wrappers, X Content rewritten (D1);
                          Recording fixtures below
   probe_accounts.py      the account probe and its gate P report (The probe below)
 tests/
@@ -103,7 +105,10 @@ Successful responses that return data spend the app's prepaid credits; failed re
 are not billed (`pages/usage-and-billing.md`). The prices are those of
 `docs/upstream/pages/pricing.md` (snapshot of 2026-10-29): reads per resource returned,
 0.005 USD a post and 0.010 USD a user; post counts per request, 0.005 USD on
-`GET /2/tweets/counts/recent` and 0.010 USD on `GET /2/tweets/counts/all`. A resource
+`GET /2/tweets/counts/recent` and 0.010 USD on `GET /2/tweets/counts/all`. The page lists
+List: Read at 0.005 USD a resource and does not say under which resource a List's posts
+(`GET /2/lists/{id}/tweets`) and members (`GET /2/lists/{id}/members`) are billed; the
+recorder estimates them as posts and users, the upper bound. A resource
 read again within the same UTC day is deduplicated (a soft guarantee, the page says); a
 counts request is not, being billed per request. Owned Reads, 0.001 USD a resource, apply
 only where `{id}` is the authenticated user who owns the app, and an app-only Bearer
@@ -157,17 +162,24 @@ a PR replaces it with a summary that keeps the names and semantics the wrappers 
 `scripts/record_fixture.py` is `/record-fixture` here, run with the key through direnv:
 `direnv exec ~/github/sdk uv run scripts/record_fixture.py <wrapper> <case> key=value ...`,
 `key=value` the query parameters under the names the wire takes (`user.fields`,
-`post.fields`, `expansions`), `id=` filling the path of `get_users_posts`. It records
+`post.fields`, `expansions`), `id=` filling the path of `get_users_posts`,
+`get_lists_posts` and `get_lists_members`. It records
 through the package's client with `RetryPolicy(max_attempts=1)`, so a 5xx spends no second
 request, and writes `tests/fixtures/<wrapper>/<case>.json` once, never over an existing
 file. How it holds to D1 above, in full in its docstring:
 
-- **The accounts.** It records the four wrappers only. Its guard covers what a request
+- **The accounts.** It records the eight wrappers only. Its guard covers what a request
   names, its usernames, ids and query, and refuses before the request one that names an
   account other than the three: `usernames` among them, `id` one of their ids, `ids` posts
-  of theirs, as the recorded fixtures give them, a counts `query` naming one of them with
-  `from:` and no other account. `--unknown` admits one other username or id, for an error
-  case, and the answer is not written if it finds an account or posts.
+  of theirs, as the recorded fixtures give them, a counts `query` (all or recent) naming
+  one of them with `from:` and no other account. A search returns the posts its query
+  matches, so the guard of `search_posts_recent` admits `from:<one of the three>` alone or
+  followed by `-is:retweet`, `-is:reply` or both, operators in lower case, and nothing
+  else (no `OR`, keyword or other operator); it reads parentheses as spaces, since these
+  terms joined by AND only narrow `from:`, and an unbalanced one is X's 400 case. A List
+  `id` is one of `LISTS`, Lists owned by one of the three (The List below). `--unknown`
+  admits one other username, user id or List id, for an error case, and the answer is not
+  written if it finds an account, posts or members.
 - **The expansions and fields.** An expansion brings other objects into an answer, and a
   field can carry values that describe other accounts. So the recorder refuses before the
   request every `expansions`, `user.fields` and `post.fields` value outside its
@@ -175,13 +187,15 @@ file. How it holds to D1 above, in full in its docstring:
   user and no user object (`referenced_posts`, which brings the posts a post reposts,
   quotes or replies to, whoever wrote them, is refused: Johannes, 2026-10-29); the plan's
   user fields with `id`, `name`, `username` and `verified`, `url` among them, admitted for
-  the requested users, the only users an answer holds; the plan's post fields with `id`
-  and `text`. The refusals exclude the values that describe other accounts and
+  the requested users, the only users an answer holds except in `get_lists_members`'
+  answer, whose users are the List's members, other accounts, whose `url` the rewrite does
+  not cover, so that wrapper refuses `url` (`NOT_ADMITTED_FOR`); the plan's post fields
+  with `id` and `text`. The refusals exclude the values that describe other accounts and
   that the rewrite does not cover (`profile_image_url`, `entities`, whose URL entities'
   `title`, `expanded_url` and `display_url` can carry a handle, `withheld`, the pinned
   post ids), until the rewrite covers them. `get_posts_by_ids/most_recent_three` was
   re-recorded without `referenced_posts` on 2026-10-29, and no fixture carries another
-  account's object.
+  account's object but the two List fixtures (The List below).
 - **The rewrite**, D1's, by key at any depth: every `text` (posts, `note_tweet`,
   `note_post`) becomes `[text rewritten]`, every `description` `[description rewritten]`,
   and in every object with a `username` that is not one of the three (a person, a
@@ -196,8 +210,22 @@ file. How it holds to D1 above, in full in its docstring:
   the 401, which bills nothing. A recording session counts its calls against the budget
   line of its briefing.
 
+The List. The List fixtures come from one List owned by @XDevelopers, id
+`715919216927322112` (`LISTS` in the recorder), whose name suggested institutional
+accounts; of its eight members, four have `verified_type: government` and four
+`verified_type: none` at recording. It was found on 2026-10-29 with one
+`GET /2/users/2244994945/owned_lists?max_results=5&list.fields=name,member_count,private`,
+@XDevelopers being the first of the three accounts read, which returned three public Lists;
+`owned_lists` is not wrapped, and that answer is not kept. A List's members and posts are
+other accounts' objects by nature: Johannes decided on 2026-10-29 that
+`get_lists_members/xdevelopers_list_ten` stays as recorded within D1 (an institutional
+List, every free text rewritten, ids, creation dates and public metrics as sent), and the
+session applies the same to `get_lists_posts/xdevelopers_list_ten` (row 330, item 10).
+
 Every fixture carries X's `x-transaction-id` response header, a request id of 16 hex
-digits that detect-secrets flags; each has an audited `.secrets.baseline` entry (`is_secret:
+digits. detect-secrets flags it in every fixture but
+`search_posts_recent/unbalanced_parenthesis`, whose id's entropy is exactly 3.0, the
+detector's limit; each flagged one has an audited `.secrets.baseline` entry (`is_secret:
 false`; row 124). Core's scrub writes `next_token=REDACTED` and `pagination_token=REDACTED`
 in a recorded URL, since its credential rule takes `token` as a whole word, and
 `sent_query` reads them the same way, so a test cannot match on them; the tokens in `meta`
@@ -290,8 +318,12 @@ problems, on `api.twitter.com`:
 
 A 200 is never an error: X answers a username or a post id it does not find with a
 `Problem` in `errors` beside the `data` found ("Partial errors",
-`pages/response-codes-and-errors.md`), and a user id it does not find with HTTP 200, a
-`resource-not-found` problem and no `data` (`get_users_posts/unknown_id`). The wrappers
+`pages/response-codes-and-errors.md`), and a user id or a List id it does not find with
+HTTP 200, a `resource-not-found` problem and no `data` (`get_users_posts/unknown_id`,
+`get_lists_posts/unknown_id`). The wrappers
 return these as the page, faithful to the answer (ADR-0003); whether a task raises
 `NotFoundError` when `data` is absent and `errors` names the resource is the task layer's
-decision (PR 6).
+decision (PR 6). A query X cannot parse is a 400 with its parser's words
+(`search_posts_recent/unbalanced_parenthesis`). Recent search, unlike `getUsersPosts`,
+returns an edited post's earlier versions as posts of their own, each with the whole
+`edit_history_post_ids` (`search_posts_recent/usda_ten`); the wrapper returns them as sent.
