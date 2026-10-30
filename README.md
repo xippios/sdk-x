@@ -57,10 +57,11 @@ a List's posts, a List's members and the project's usage).
 
 `xippios-x-mcp` serves stdio; `--http` serves streamable HTTP instead. Tools are
 read-only and named `x_<verb>_<noun>`; every call spends X credits, and each tool's
-description gives its price. A tool returns one page, which its result cap holds whole: up
-to 100 posts in 128,000 bytes, 100 users in 160,000, and 64 KB for the counts, which a
-month of hourly buckets fits; minute counts over more than about 13 hours are cut, with a
-note on how to see the rest.
+description gives its price. A tool returns one page, which its result cap holds whole for
+Latin-script text: up to 100 posts in 128,000 bytes, 100 users in 160,000, and 64 KB for
+the counts, which a month of hourly buckets fits. A page of mostly non-Latin text, or
+minute counts over more than about 14 hours, can be cut, with a note on how to see the
+rest.
 
 ## Status
 

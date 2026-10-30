@@ -230,7 +230,7 @@ List, every free text rewritten, ids, creation dates and public metrics as sent)
 session applies the same to `get_lists_posts/xdevelopers_list_ten` (row 330, item 10).
 Johannes read it the same way for a conversation on 2026-10-29: `search_posts_recent/
 usda_conversation` is the recent search `conversation_id:2115806101480337475`, @USDA's most
-recent post at recording, ten posts, nine replies by other accounts and the post itself,
+recent post at recording, ten posts, nine replies and the post itself,
 every `text` rewritten, ids, times and public metrics as sent; no user object, since the
 recorder admits no `author_id` expansion.
 
@@ -257,7 +257,7 @@ the OpenAPI document's (posts, users, Lists), never "tweet" or "account".
 | `lookup_users(usernames, most_recent_post=False)` | `get_users_by_usernames` | 0.010 USD a user found, up to 100 (1.00 USD); 0.005 USD more a user with `most_recent_post`, off by default (up to 1.50 USD) |
 | `get_user_posts(id, max_results=10, pagination_token, start_time, end_time)` | `get_users_posts` | 0.005 USD a post, 5 to 100 (0.50 USD) |
 | `search_recent_posts(query, max_results=10, next_token, start_time, end_time)` | `search_posts_recent` | 0.005 USD a post, 10 to 100 (0.50 USD) |
-| `count_posts(query, granularity="day", start_time, end_time, next_token)` | `get_posts_counts_all` | 0.010 USD a request, one page of 31 days |
+| `count_posts(query, granularity="hour", start_time, end_time, next_token)` | `get_posts_counts_all` | 0.010 USD a request, one page of up to 31 days |
 | `get_list_posts(id, max_results=10, pagination_token)` | `get_lists_posts` | 0.005 USD a post, 1 to 100 (0.50 USD), counted as posts |
 | `get_conversation_posts(conversation_id, max_results=10, next_token)` | `search_posts_recent` with `conversation_id:<id>` | 0.005 USD a post, 10 to 100 (0.50 USD) |
 | `get_usage(days=7)` | `get_usage` | no price on the page |
@@ -271,7 +271,8 @@ The rules they share, stated in the module docstring too:
 - **Counts.** One task on the full archive, `GET /2/tweets/counts/all` (the session's
   choice of 2026-10-29: one counts task on the general endpoint, explicit names over
   switches; row 338 item 5); the recent counts stay a wrapper. Every granularity X takes is
-  served, minutes included.
+  served, minutes included, and the default is upstream's, `hour` (ADR-0003). Without
+  `start_time` upstream chooses the range; the recordings all give one.
 - **Queries.** `search_recent_posts` refuses a query over 512 characters before the call
   ("512 query length", `pages/rate-limits.md`), `count_posts` one over 1,024 ("1,024-character
   query length (4,096 for Enterprise)", `pages/post-counts.md`; row 338 item 7); the
@@ -300,8 +301,10 @@ The rules they share, stated in the module docstring too:
   128,000 bytes (100 x (960 + 280) + 600 = 124,600), `lookup_users` 160,000 (100 users with
   the longest texts 104,600, room for non-ASCII text; with `most_recent_post` about 70
   users and their posts fit), `count_posts` keeps 64 KB (744 hour buckets take 58,432;
-  minutes pass it beyond about 13 hours, 835 buckets) and `get_usage` has no entry. Each
-  note names the tool's own parameters.
+  minutes pass it beyond about 14 hours, about 840 buckets) and `get_usage` has no entry.
+  The whole-page arithmetic holds for Latin-script text, about one byte a character; a
+  page of mostly non-Latin text (CJK, Arabic, emoji) takes up to four bytes a character
+  and can still be cut, with the note. Each note names the tool's own parameters.
 
 ### Live tests (D3)
 

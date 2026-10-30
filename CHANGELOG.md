@@ -56,9 +56,10 @@ All notable changes to this project are documented here. The format follows
 - The task layer, seven read tasks, each one request returning X's page as sent with its
   release metadata: `lookup_users` (users by username, with their most recent post on
   request), `get_user_posts`, `search_recent_posts` (512 characters of query at most),
-  `count_posts` (post counts over the full archive by day, hour or minute, 1,024 characters
-  of query at most), `get_list_posts`, `get_conversation_posts` (a conversation's posts of
-  the last seven days) and `get_usage` (the project's post usage). Paging is the caller's,
+  `count_posts` (post counts over the full archive by hour, upstream's default, day or
+  minute, 1,024 characters of query at most), `get_list_posts`, `get_conversation_posts`
+  (a conversation's posts of the last seven days) and `get_usage` (the project's post
+  usage). Paging is the caller's,
   with the `next_token` of the previous page; `max_results` defaults to 10 and goes up to
   100, and each docstring names the price per post, user or request. `meta.published_at`
   stays empty: X states no release time for a page, and each post carries its own creation
@@ -68,9 +69,10 @@ All notable changes to this project are documented here. The format follows
   tools `x_lookup_users`, `x_get_user_posts`, `x_search_recent_posts`, `x_count_posts`,
   `x_get_list_posts`, `x_get_conversation_posts` and `x_get_usage` and the routes under
   `/x/`. The post tools' results are capped at 128,000 bytes and `x_lookup_users`' at
-  160,000, so a whole page of 100 posts or users comes back; the other tools keep the
-  family's 64 KB, which a month of hourly counts fits and minute counts over more than
-  about 13 hours pass. A cut's note names the tool's own parameters.
+  160,000, so a whole page of 100 posts or users comes back where its text is
+  Latin-script (mostly non-Latin text can still be cut); the other tools keep the family's
+  64 KB, which a month of hourly counts fits and minute counts over more than about 14
+  hours pass. A cut's note names the tool's own parameters.
 - `api.get_usage`, the wrapper of `GET /2/usage/tweets`, with the `Usage` models and
   `UsageField`; X answers in the OpenAPI document's shape, its counts as digit strings,
   read as numbers.
