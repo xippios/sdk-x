@@ -182,8 +182,8 @@ file. How it holds to D1 above, in full in its docstring:
   terms joined by AND only narrow `from:`, and an unbalanced one is X's 400 case. It admits
   one more query, `conversation_id:<id>` alone, the id a post of the three as the recorded
   fixtures give them (as for `ids`): the conversation a post of theirs started, whose
-  replies are other accounts' posts by nature, recorded as the List's are (The List and
-  the conversation below). A List `id` is one of `LISTS`, Lists owned by one of the three.
+  replies, other accounts' among them, are recorded as the List's are (The List and the
+  conversation below). A List `id` is one of `LISTS`, Lists owned by one of the three.
   `--unknown` admits one other username, user id or List id, for an error case, and the
   answer is not written if it finds an account, posts or members. `get_usage` has no
   guard: its answer holds the project's usage numbers and ids, no X Content.
@@ -202,7 +202,8 @@ file. How it holds to D1 above, in full in its docstring:
   `title`, `expanded_url` and `display_url` can carry a handle, `withheld`, the pinned
   post ids), until the rewrite covers them. `get_posts_by_ids/most_recent_three` was
   re-recorded without `referenced_posts` on 2026-10-29, and no fixture carries another
-  account's object but the two List fixtures (The List below).
+  account's object but the two List fixtures and the conversation fixture (The List and
+  the conversation below).
 - **The rewrite**, D1's, by key at any depth: every `text` (posts, `note_tweet`,
   `note_post`) becomes `[text rewritten]`, every `description` `[description rewritten]`,
   and in every object with a `username` that is not one of the three (a person, a

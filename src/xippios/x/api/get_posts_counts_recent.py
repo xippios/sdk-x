@@ -8,7 +8,8 @@ Reference: ``docs/upstream/openapi/openapi.json``, ``paths./2/tweets/counts/rece
 when omitted); the answer ``GetPostsCountsRecentResponse``: ``data`` (``start``, ``end``,
 ``post_count``), ``meta`` (``next_token``, ``total_post_count``). The document's
 ``since_id``, ``until_id`` and ``search_count.fields`` are not wrapped, as for
-``getPostsCountsAll``: no task needs them yet. Collecting the pages is the task layer's.
+``getPostsCountsAll``: no task needs them yet. Paging is the caller's: a task returns
+one page and its token.
 
 Recorded on 2026-10-29 (``usda_by_day``): eight buckets by day, oldest first, the last
 ending shortly before the time of the request and the first starting seven days before

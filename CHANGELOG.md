@@ -59,9 +59,9 @@ All notable changes to this project are documented here. The format follows
   `count_posts` (post counts over the full archive by hour, upstream's default, day or
   minute, 1,024 characters of query at most), `get_list_posts`, `get_conversation_posts`
   (a conversation's posts of the last seven days) and `get_usage` (the project's post
-  usage). Paging is the caller's,
-  with the `next_token` of the previous page; `max_results` defaults to 10 and goes up to
-  100, and each docstring names the price per post, user or request. `meta.published_at`
+  usage). Paging is the caller's, with the `next_token` of the previous page;
+  `max_results` defaults to 10 and goes up to 100, and each docstring names the price per
+  post, user or request. `meta.published_at`
   stays empty: X states no release time for a page, and each post carries its own creation
   time. A user or List id X does not find, or a lookup that finds nobody, raises
   `NotFoundError`.

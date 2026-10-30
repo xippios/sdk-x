@@ -361,14 +361,14 @@ async def count_posts_async(
     """Count the X posts matching a query over the full archive, by day, hour or minute.
 
     One request (``GET /2/tweets/counts/all``) for one page of up to 31 days, the newest
-    first page by page (without ``start_time`` upstream chooses the range, one page of up
-    to 31 days ending now in the recordings); within the page the buckets in ``data`` run
-    oldest first, each with ``start``, ``end`` and ``post_count``. ``data.meta`` holds
-    ``total_post_count``, the page's sum, and the ``next_token`` of the days before. A
-    page of hours holds up to 744 buckets, of minutes 44,640: ``hour``, upstream's
-    default, or ``day`` is the usual choice, and minutes over more than about 14 hours
-    pass the MCP tool's result cap. Price: 0.010 USD a request, every request, since
-    counts are not deduplicated.
+    first page by page (without ``start_time`` upstream chooses the range; the live run
+    of 2026-10-30 returned one page ending at the request time); within the page the
+    buckets in ``data`` run oldest first, each with ``start``, ``end`` and
+    ``post_count``. ``data.meta`` holds ``total_post_count``, the page's sum, and the
+    ``next_token`` of the days before. A page of hours holds up to 744 buckets, of
+    minutes 44,640: ``hour``, upstream's default, or ``day`` is the usual choice, and
+    minutes over more than about 14 hours pass the MCP tool's result cap. Price: 0.010 USD
+    a request, every request, since counts are not deduplicated.
 
     Args:
         query: X's search syntax, at most 1,024 characters (``pages/post-counts.md``),
@@ -377,8 +377,7 @@ async def count_posts_async(
         granularity: The bucket, ``"hour"`` (upstream's default, and this task's),
             ``"day"`` or ``"minute"``.
         start_time: The oldest time counted, a datetime with a zone, e.g.
-            ``"2026-07-31T00:00:00Z"``; ``None`` leaves the range to upstream, one page of
-            up to 31 days ending now in the recordings.
+            ``"2026-07-31T00:00:00Z"``; ``None`` leaves the range to upstream.
         end_time: The newest time counted, likewise, e.g. ``"2026-10-29T00:00:00Z"``.
         next_token: The page to return: pass the ``next_token`` from the previous page's
             ``meta`` (``data.meta.next_token``); ``None``, the default, returns the first

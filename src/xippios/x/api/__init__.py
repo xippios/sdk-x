@@ -4,8 +4,9 @@
 ``operationId`` in snake case (``getUsersByUsernames`` is ``get_users_by_usernames`` in
 ``get_users_by_usernames.py``); the verbatim id stays in the first line of each wrapper's
 docstring and in the ``endpoint=`` it passes. Each returns one answer, one page, as the
-document's response model; collecting pages is the task layer's. ``_query`` turns the
-parameters into the text X takes and refuses values outside the document's bounds.
+document's response model; paging is the caller's: a task returns one page and its token.
+``_query`` turns the parameters into the text X takes and refuses values outside the
+document's bounds.
 """
 
 from xippios.x.api.get_lists_members import get_lists_members

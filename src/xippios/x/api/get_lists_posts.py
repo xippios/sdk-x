@@ -7,8 +7,8 @@ Reference: ``docs/upstream/openapi/openapi.json``, ``paths./2/lists/{id}/tweets.
 ``data``, ``includes``, ``errors``, ``meta`` (``result_count``, ``next_token``,
 ``previous_token``). The Posts are those of the List's members. The document's
 ``media.fields``, ``poll.fields`` and ``place.fields`` are not wrapped: no task needs them
-yet, and their objects stay as sent in ``includes``. Collecting the pages is the task
-layer's.
+yet, and their objects stay as sent in ``includes``. Paging is the caller's: a task
+returns one page and its token.
 
 Recorded on 2026-10-29 from a List @XDevelopers owns (``xdevelopers_list_ten``): nine Posts
 for ``max_results=10``, newest first, with a ``next_token`` (fewer than ``max_results``

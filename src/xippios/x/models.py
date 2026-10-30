@@ -4,9 +4,10 @@ Conventions §3 and ``/add-endpoint`` give the rules.
 
 The models mirror the schemas of the OpenAPI document in ``docs/upstream/openapi/
 openapi.json`` (version 2.173) under its names: ``User``, ``Post``, ``Expansions``,
-``Problem``, the eight operations' responses and their parts. Every field the document
-gives is a field here, optional unless the document requires it (``id`` of a ``User`` and
-a ``Post`` is required too: it is the object's identifier, sent in every recorded answer).
+``Problem``, ``Usage``, the nine operations' responses and their parts. Every field the
+document gives is a field here, optional unless the document requires it (``id`` of a
+``User`` and a ``Post`` is required too: it is the object's identifier, sent in every
+recorded answer).
 Times parse to ``datetime``; the document's enumerations are ``StrEnum`` (ADR-0008),
 written by hand below since ``enums.py`` holds only what the refresh script generates. An
 object the document gives no properties for (``article``, ``non_public_metrics``), or

@@ -44,9 +44,9 @@ usernames, ids and query, and refuses before any request one that names another 
   terms joined by AND alone narrow ``from:`` however they are grouped, and an unbalanced
   one is the case for X's HTTP 400. Or ``query`` is ``conversation_id:<id>`` alone, the id
   a post of the three as the recorded fixtures give them (as for ``get_posts_by_ids``):
-  the conversation a post of theirs started, whose replies are other accounts' posts by
-  nature, recorded as the List's are, every text rewritten, ids, times and metrics as
-  sent (Johannes, 2026-10-29; row 330, item 10).
+  the conversation a post of theirs started, whose replies, other accounts' among them,
+  are recorded as the List's are, every text rewritten, ids, times and metrics as sent
+  (Johannes, 2026-10-29; row 330, item 10).
 - ``get_lists_posts`` and ``get_lists_members``: ``id`` is one of ``LISTS``, Lists owned
   by one of the three, read from ``GET /2/users/{id}/owned_lists`` on 2026-10-29.
   ``--unknown`` admits one other List id, for the not-found case; the answer is refused if
@@ -63,7 +63,8 @@ describe other accounts. So the recorder also refuses, before any request, every
   posts a post reposts, quotes or replies to, whoever wrote them.
   ``get_posts_by_ids/most_recent_three`` was re-recorded without it on 2026-10-29, and no
   fixture carries another account's object but the two List fixtures, whose members and
-  posts are other accounts' by nature (row 330, item 10).
+  posts are other accounts' by nature, and the conversation fixture, whose replies are
+  other accounts' among them (row 330, item 10).
 - ``user.fields``: the probe's plan with ``id``, ``name``, ``username`` and ``verified``.
   ``url`` is among them, the requested users' own: the user objects of an answer are the
   requested users' only. ``get_lists_members`` is the exception (``NOT_ADMITTED_FOR``):
@@ -190,7 +191,7 @@ ADMITTED = {
 The one expansion brings a post of the requested user and no user object, so an answer's
 objects are the requested users' and their posts only (Johannes, 2026-10-29), except in
 the List wrappers' answers, whose posts and users are the List's members', other accounts,
-and a conversation's search, whose replies are other accounts' posts: there
+and a conversation's search, whose replies are other accounts' among them: there
 ``NOT_ADMITTED_FOR`` refuses ``url`` for ``get_lists_members``, and the field values
 admitted carry nothing of other accounts the rewrite leaves but their ids, creation dates
 and public metrics, kept as sent (row 330, item 10).

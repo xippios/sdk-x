@@ -8,7 +8,7 @@ and ``user.fields``; the answer ``GetUsersPostsResponse`` with ``meta`` (``resul
 ``newest_id``, ``oldest_id``, ``next_token``, ``previous_token``), newest first
 (``pages/pagination.md``). The document's ``since_id``, ``until_id``, ``exclude``,
 ``media.fields``, ``poll.fields`` and ``place.fields`` are not wrapped: no task needs them
-yet. Collecting the pages is the task layer's.
+yet. Paging is the caller's: a task returns one page and its token.
 
 Recorded on 2026-10-29: ten Posts of each of the three accounts with ``post.fields``,
 answered in the document's names (``*_ten``); @USDA's page held 9 Posts with a
