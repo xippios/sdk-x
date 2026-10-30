@@ -34,12 +34,13 @@ print(page.meta.retrieved_at, page.meta.request, page.data.meta.result_count)
 older = tasks.get_user_posts(usda.id, pagination_token=page.data.meta.next_token)
 ```
 
-Every task returns one page as X sends it, in `result.data`, and spends X credits at the
-prices of X's pricing page, which each task's docstring names; paging is the caller's, with
-the `next_token` of the previous page's `meta`. Underneath the tasks, `xippios.x.api` wraps
-nine X API v2 operations one page at a time (users by username, posts by id, a user's
-posts, post counts over the archive, recent search, post counts over the last seven days,
-a List's posts, a List's members and the project's usage).
+Every task returns one page as X sends it, in `result.data`; a call that returns data
+spends X credits at the prices of X's pricing page, which each task's docstring names (the
+page states none for `get_usage`). Paging is the caller's, with the `next_token` of the
+previous page's `meta`. Underneath the tasks, `xippios.x.api` wraps nine X API v2
+operations one page at a time (users by username, posts by id, a user's posts, post counts
+over the archive, recent search, post counts over the last seven days, a List's posts, a
+List's members and the project's usage).
 
 ## MCP
 
@@ -55,13 +56,13 @@ a List's posts, a List's members and the project's usage).
 }
 ```
 
-`xippios-x-mcp` serves stdio; `--http` serves streamable HTTP instead. Tools are
-read-only and named `x_<verb>_<noun>`; every call spends X credits, and each tool's
-description gives its price. A tool returns one page, which its result cap holds whole for
-Latin-script text: up to 100 posts in 128,000 bytes, 100 users in 160,000, and 64 KB for
-the counts, which a month of hourly buckets fits. A page of mostly non-Latin text, or
-minute counts over more than about 14 hours, can be cut, with a note on how to see the
-rest.
+`xippios-x-mcp` serves stdio; `--http` serves streamable HTTP instead. Tools are read-only
+and named `x_<verb>_<noun>`; every call that returns data spends X credits, and each
+tool's description gives its price (the pricing page states none for `x_get_usage`). A
+tool returns one page, which its result cap holds whole for Latin-script text: up to 100
+posts in 128,000 bytes, 100 users in 160,000, and 64 KB for the counts, which a month of
+hourly buckets fits. A page of mostly non-Latin text, or minute counts over more than
+about 14 hours, can be cut, with a note on how to see the rest.
 
 ## Status
 

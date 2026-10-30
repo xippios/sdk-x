@@ -11,16 +11,17 @@ All notable changes to this project are documented here. The format follows
 First release, on xippios-core 0.3.0 from PyPI (`~=0.3.0`), sdk-template v0.3.0 and
 conventions 1.24, under ADR-0027, which sets the rules for X, the family's first
 upstream that bills in money rather than by quota. It reads X API v2 with the app's
-Bearer Token and writes nothing: seven read tasks, `lookup_users`, `get_user_posts`,
+Bearer Token and posts nothing: seven read tasks, `lookup_users`, `get_user_posts`,
 `search_recent_posts`, `count_posts`, `get_list_posts`, `get_conversation_posts` and
 `get_usage`, each one request returning one page as X sends it, served as MCP tools and
-HTTP routes over nine endpoint wrappers. Every call spends X credits at the prices of
-X's pricing page, which each task's docstring names, and the spending limit set in X's
-Developer Console is the hard stop: a post task reads at most 100 posts a call, 0.50
-USD, `lookup_users` at most 100 users, 1.00 USD (1.50 USD with their most recent posts),
-a count costs 0.010 USD a request, and the nightly live run spends one lookup, about
-0.010 USD. Posting and reads in a user's context are not part of it. Nothing was
-published before, so the entries under Changed record steps on the way to this release.
+HTTP routes over nine endpoint wrappers. Each call that returns data spends X credits at
+the prices of X's pricing page, which each task's docstring names (the page states none
+for `get_usage`), and the spending limit set in X's Developer Console is the hard stop:
+a post task reads at most 100 posts a call, 0.50 USD, `lookup_users` at most 100 users,
+1.00 USD (1.50 USD with their most recent posts), a count costs 0.010 USD a request, and
+the nightly live run spends one lookup, about 0.010 USD. Posting and reads in a user's
+context are not part of it. Nothing was published before, so the entries under Changed
+record steps on the way to this release.
 
 ### Added
 
