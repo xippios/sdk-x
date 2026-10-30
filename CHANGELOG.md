@@ -16,7 +16,8 @@ All notable changes to this project are documented here. The format follows
   OpenAPI document (version 2.173), the docs.x.com pages on pricing, usage and billing,
   the usage endpoint, rate limits, response codes and errors, fields, pagination, post
   counts and app-only Bearer Token authentication, and the X Developer Agreement and
-  Developer Policy, each kept as served; `scripts/refresh_upstream.py` reproduces it
+  Developer Policy, each kept as served, refreshed on 2026-10-30 with the search
+  operators page, which documents the query operators the tasks use; `scripts/refresh_upstream.py` reproduces it
   and regenerates `FETCHED.md`.
 - The four read wrappers the account probe needs, one page each as the OpenAPI
   document's response model (`data`, `includes`, `errors`, `meta`):
