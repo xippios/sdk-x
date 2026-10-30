@@ -14,6 +14,7 @@ log only in part.
 """
 
 import os
+from datetime import timedelta
 
 import httpx
 import pytest
@@ -83,13 +84,18 @@ def test_search_recent_posts() -> None:
 
 
 def test_count_posts() -> None:
+    """Hourly buckets, upstream's default: none longer than an hour (the newest can end
+    early), their sum the page's total."""
     not_in_the_nightly_run()
     result = tasks.count_posts("from:XDevelopers")
     assert result.meta.endpoint == "getPostsCountsAll"
-    assert result.data.data is not None
-    assert 30 <= len(result.data.data) <= 32
+    assert result.meta.request["granularity"] == "hour"
+    buckets = result.data.data
+    assert buckets
+    assert len(buckets) <= 31 * 24 + 1
+    assert all(timedelta(0) < b.end - b.start <= timedelta(hours=1) for b in buckets)
     assert result.data.meta is not None
-    assert result.data.meta.total_post_count == sum(b.post_count for b in result.data.data)
+    assert result.data.meta.total_post_count == sum(b.post_count for b in buckets)
 
 
 def test_get_list_posts() -> None:

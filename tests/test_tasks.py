@@ -169,7 +169,7 @@ def test_lookup_users_finding_nobody_is_not_found(respx_mock: respx.MockRouter) 
     )
     with pytest.raises(NotFoundError, match=r"usernames: \[xippiosnouser01\]") as raised:
         tasks.lookup_users(["xippiosnouser01"])
-    assert "getUsersByUsernames" in str(raised.value)
+    assert str(raised.value).startswith("X found nothing (HTTP 200 from GET /2/users/by): ")
 
 
 def test_lookup_users_refuses_before_the_call(respx_mock: respx.MockRouter) -> None:
@@ -229,7 +229,9 @@ def test_get_user_posts_unknown_id_is_not_found(replay_fixture: ReplayFixture) -
     route = replay_fixture("get_users_posts", "unknown_id")
     with pytest.raises(NotFoundError, match=r"Could not find user with id") as raised:
         tasks.get_user_posts("9000000000000000000")
-    assert str(raised.value).startswith("X found nothing (getUsersPosts): ")
+    assert str(raised.value).startswith(
+        "X found nothing (HTTP 200 from GET /2/users/9000000000000000000/tweets): "
+    )
     assert sent_query(route) == recorded("get_users_posts", "unknown_id")
 
 
@@ -286,7 +288,9 @@ def test_count_posts(replay_fixture: ReplayFixture) -> None:
     """One page of 31 days by day over the full archive."""
     route = replay_fixture("get_posts_counts_all", "usda_by_day")
     result, before, after = call(
-        lambda: tasks.count_posts("from:USDA", start_time=datetime(2026, 7, 31, tzinfo=UTC))
+        lambda: tasks.count_posts(
+            "from:USDA", granularity=Granularity.DAY, start_time=datetime(2026, 7, 31, tzinfo=UTC)
+        )
     )
     assert sent_query(route) == recorded("get_posts_counts_all", "usda_by_day")
     assert_meta(result.meta, "getPostsCountsAll", before, after)
@@ -319,6 +323,15 @@ def test_count_posts_second_page(replay_fixture: ReplayFixture) -> None:
     assert result.meta.request["next_token"] == "REDACTED"
     assert result.data.data is not None
     assert result.data.data[-1].end <= first.data[0].start
+
+
+def test_count_posts_counts_by_hour_by_default(replay_fixture: ReplayFixture) -> None:
+    """Upstream's default granularity, ``hour``, is the task's, and is sent; the answer is
+    the recorded daily page, mounted on its path: no hourly page was recorded."""
+    route = replay_fixture("get_posts_counts_all", "usda_by_day")
+    result = tasks.count_posts("from:USDA")
+    assert sent_query(route) == {"query": "from:USDA", "granularity": "hour"}
+    assert result.meta.request == {"query": "from:USDA", "granularity": "hour"}
 
 
 def test_count_posts_refuses_a_long_query(respx_mock: respx.MockRouter) -> None:
@@ -544,7 +557,8 @@ async def test_an_unknown_list_is_a_not_found_answer(replay_fixture: ReplayFixtu
         server, "x_get_list_posts", {"id": "9000000000000000000", "max_results": 10}
     )
     assert text == (
-        "error: NotFoundError: X found nothing (getListsPosts): "
+        "error: NotFoundError: X found nothing "
+        "(HTTP 200 from GET /2/lists/9000000000000000000/tweets): "
         "Could not find list with id: [9000000000000000000]."
     )
 
@@ -590,7 +604,8 @@ def http() -> TestClient:
 def test_count_posts_route_end_to_end(replay_fixture: ReplayFixture, http: TestClient) -> None:
     route = replay_fixture("get_posts_counts_all", "usda_by_day")
     answer = http.get(
-        "/x/count_posts", params={"query": "from:USDA", "start_time": "2026-07-31T00:00:00Z"}
+        "/x/count_posts",
+        params={"query": "from:USDA", "granularity": "day", "start_time": "2026-07-31T00:00:00Z"},
     )
     assert answer.status_code == 200
     assert sent_query(route) == recorded("get_posts_counts_all", "usda_by_day")

@@ -101,9 +101,9 @@ MCP_CAPS: Mapping[str, ResultCap] = {
     ),
     "count_posts": ResultCap(
         note=(
-            "minute buckets over more than about 13 hours pass the cap: count by day or hour, "
-            "the usual choices, whose 31 days fit, or bring start_time and end_time within "
-            "about 13 hours, to see the rest"
+            "minute buckets over more than about 14 hours pass the cap: count by hour (the "
+            "default) or day, whose 31 days fit, or bring start_time and end_time within "
+            "about 14 hours, to see the rest"
         ),
     ),
     "get_list_posts": ResultCap(
@@ -133,7 +133,7 @@ tools; 100 users with the longest free texts 100 x (800 + 240) + 600 = 104,600, 
 ``most_recent_post`` each user brings a post besides, 100 x (1,040 + 1,240) + 600 =
 228,600, so about 70 users with their posts fit. ``count_posts`` keeps the family's
 64 KB: a page of 31 days of hours, 744 buckets, takes 744 x 78 + 400 = 58,432 bytes, and
-only minutes over more than about 13 hours (835 buckets) pass it. ``get_usage``, at most
+only minutes over more than about 14 hours (about 840 buckets) pass it. ``get_usage``, at most
 90 days, stays under the default and has no entry. Each note names the tool's own
 parameters.
 """
@@ -188,13 +188,17 @@ def _when(name: str, value: datetime | None) -> str | None:
     return None if value is None else instant(name, value)
 
 
-def _absent(endpoint: str, data: object, errors: Sequence[Problem] | None) -> None:
-    """Raise ``NotFoundError`` for a page without ``data`` whose problems are all not-found."""
+def _absent(where: str, data: object, errors: Sequence[Problem] | None) -> None:
+    """Raise ``NotFoundError`` for a page without ``data`` whose problems are all not-found.
+
+    ``where`` is the request's method and path, e.g. ``GET /2/users/61853389/tweets``, as
+    conventions §5 asks of an error's text; never its query.
+    """
     if data or not errors:
         return
     if all(problem.type.rstrip("/").rsplit("/", 1)[-1] == _NOT_FOUND for problem in errors):
         said = "; ".join(problem.detail for problem in errors)
-        raise NotFoundError(f"X found nothing ({endpoint}): {said}", source=SOURCE)
+        raise NotFoundError(f"X found nothing (HTTP 200 from {where}): {said}", source=SOURCE)
 
 
 def _query(query: str, limit: int) -> str:
@@ -229,7 +233,7 @@ async def lookup_users_async(
     page = await api.get_users_by_usernames(
         usernames, user_fields=USER_FIELDS, expansions=expansions, post_fields=post_fields
     )
-    _absent("getUsersByUsernames", page.data, page.errors)
+    _absent("GET /2/users/by", page.data, page.errors)
     request = {
         "usernames": list(usernames),
         "user.fields": _values(USER_FIELDS),
@@ -279,7 +283,7 @@ async def get_user_posts_async(
         end_time=end_time,
         post_fields=POST_FIELDS,
     )
-    _absent("getUsersPosts", page.data, page.errors)
+    _absent(f"GET /2/users/{id}/tweets", page.data, page.errors)
     request = {
         "id": id,
         "max_results": max_results,
@@ -349,29 +353,32 @@ search_recent_posts = sync(search_recent_posts_async)
 
 async def count_posts_async(
     query: str,
-    granularity: Granularity = Granularity.DAY,
+    granularity: Granularity = Granularity.HOUR,
     start_time: datetime | None = None,
     end_time: datetime | None = None,
     next_token: str | None = None,
 ) -> Result[GetPostsCountsAllResponse]:
     """Count the X posts matching a query over the full archive, by day, hour or minute.
 
-    One request (``GET /2/tweets/counts/all``) for one page of 31 days, the newest first
-    page by page (without ``start_time`` the 31 days up to now); within the page the
-    buckets in ``data`` run oldest first, each with ``start``, ``end`` and
-    ``post_count``. ``data.meta`` holds ``total_post_count``, the page's sum, and the
-    ``next_token`` of the 31 days before. A page of hours holds 744 buckets, of minutes
-    44,640: ``day`` or ``hour`` is the usual choice, and minutes over more than about 13
-    hours pass the MCP tool's result cap. Price: 0.010 USD a request, every request, since
+    One request (``GET /2/tweets/counts/all``) for one page of up to 31 days, the newest
+    first page by page (without ``start_time`` upstream chooses the range, one page of up
+    to 31 days ending now in the recordings); within the page the buckets in ``data`` run
+    oldest first, each with ``start``, ``end`` and ``post_count``. ``data.meta`` holds
+    ``total_post_count``, the page's sum, and the ``next_token`` of the days before. A
+    page of hours holds up to 744 buckets, of minutes 44,640: ``hour``, upstream's
+    default, or ``day`` is the usual choice, and minutes over more than about 14 hours
+    pass the MCP tool's result cap. Price: 0.010 USD a request, every request, since
     counts are not deduplicated.
 
     Args:
         query: X's search syntax, at most 1,024 characters (``pages/post-counts.md``),
             e.g. ``"from:USDA"`` or ``"from:USDA -is:retweet -is:reply"`` (original posts
             only); longer is refused before the call.
-        granularity: The bucket, ``"day"`` (the default), ``"hour"`` or ``"minute"``.
+        granularity: The bucket, ``"hour"`` (upstream's default, and this task's),
+            ``"day"`` or ``"minute"``.
         start_time: The oldest time counted, a datetime with a zone, e.g.
-            ``"2026-07-31T00:00:00Z"``; ``None`` counts the 31 days up to now.
+            ``"2026-07-31T00:00:00Z"``; ``None`` leaves the range to upstream, one page of
+            up to 31 days ending now in the recordings.
         end_time: The newest time counted, likewise, e.g. ``"2026-10-29T00:00:00Z"``.
         next_token: The page to return: pass the ``next_token`` from the previous page's
             ``meta`` (``data.meta.next_token``); ``None``, the default, returns the first
@@ -426,7 +433,7 @@ async def get_list_posts_async(
     page = await api.get_lists_posts(
         id, max_results=max_results, pagination_token=pagination_token, post_fields=POST_FIELDS
     )
-    _absent("getListsPosts", page.data, page.errors)
+    _absent(f"GET /2/lists/{id}/tweets", page.data, page.errors)
     request = {
         "id": id,
         "max_results": max_results,
