@@ -6,6 +6,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-30
+
+First release, on xippios-core 0.3.0 from PyPI (`~=0.3.0`), sdk-template v0.3.0 and
+conventions 1.24, under ADR-0027, which sets the rules for X, the family's first
+upstream that bills in money rather than by quota. It reads X API v2 with the app's
+Bearer Token and writes nothing: seven read tasks, `lookup_users`, `get_user_posts`,
+`search_recent_posts`, `count_posts`, `get_list_posts`, `get_conversation_posts` and
+`get_usage`, each one request returning one page as X sends it, served as MCP tools and
+HTTP routes over nine endpoint wrappers. Every call spends X credits at the prices of
+X's pricing page, which each task's docstring names, and the spending limit set in X's
+Developer Console is the hard stop: a post task reads at most 100 posts a call, 0.50
+USD, `lookup_users` at most 100 users, 1.00 USD (1.50 USD with their most recent posts),
+a count costs 0.010 USD a request, and the nightly live run spends one lookup, about
+0.010 USD. Posting and reads in a user's context are not part of it. Nothing was
+published before, so the entries under Changed record steps on the way to this release.
+
 ### Added
 
 - Scaffold from [sdk-template](https://github.com/xippios/sdk-template): configured
@@ -17,8 +33,8 @@ All notable changes to this project are documented here. The format follows
   the usage endpoint, rate limits, response codes and errors, fields, pagination, post
   counts and app-only Bearer Token authentication, and the X Developer Agreement and
   Developer Policy, each kept as served, refreshed on 2026-10-30 with the search
-  operators page, which documents the query operators the tasks use; `scripts/refresh_upstream.py` reproduces it
-  and regenerates `FETCHED.md`.
+  operators page, which documents the query operators the tasks use;
+  `scripts/refresh_upstream.py` reproduces it and regenerates `FETCHED.md`.
 - The four read wrappers the account probe needs, one page each as the OpenAPI
   document's response model (`data`, `includes`, `errors`, `meta`):
   `api.get_users_by_usernames`, `api.get_posts_by_ids`, `api.get_users_posts` and
@@ -62,10 +78,9 @@ All notable changes to this project are documented here. The format follows
   (a conversation's posts of the last seven days) and `get_usage` (the project's post
   usage). Paging is the caller's, with the `next_token` of the previous page;
   `max_results` defaults to 10 and goes up to 100, and each docstring names the price per
-  post, user or request. `meta.published_at`
-  stays empty: X states no release time for a page, and each post carries its own creation
-  time. A user or List id X does not find, or a lookup that finds nobody, raises
-  `NotFoundError`.
+  post, user or request. `meta.published_at` stays empty: X states no release time for a
+  page, and each post carries its own creation time. A user or List id X does not find,
+  or a lookup that finds nobody, raises `NotFoundError`.
 - The MCP read server `xippios-x-mcp` and the FastAPI router serve the seven tasks as the
   tools `x_lookup_users`, `x_get_user_posts`, `x_search_recent_posts`, `x_count_posts`,
   `x_get_list_posts`, `x_get_conversation_posts` and `x_get_usage` and the routes under
