@@ -70,7 +70,7 @@ about 14 hours, can be cut, with a note on how to see the rest.
 heading and the "Task function" column. Each row's Task function cell starts with the
 task's name in backticks, alone or as its call (`get_data(code, year)`); several tasks in
 one row are backticked names separated by commas; prose may follow. The tables list
-exactly tasks.__all__. -->
+exactly tasks.__all__, and tasks_write.__all__ where the package has write tasks. -->
 
 | Upstream operation | Task function | MCP tool | Status |
 | --- | --- | --- | --- |
@@ -94,6 +94,15 @@ Data comes from X API v2 (https://x.com) under the
 uses it; this package adds no rights to it. Documentation snapshot and its attribution:
 `docs/upstream/FETCHED.md`.
 
+## Documents
+
+- sdk-core: [docs/conventions.md](https://github.com/xippios/sdk-core/blob/main/docs/conventions.md) — the conventions every xippios source package follows: its layout, names, results, tests and releases.
+- sdk-core: [docs/adr.md](https://github.com/xippios/sdk-core/blob/main/docs/adr.md) — the index of the family's architecture decisions, which the conventions cite.
+- sdk-core: [docs/definition-of-done.md](https://github.com/xippios/sdk-core/blob/main/docs/definition-of-done.md) — what a change satisfies before its pull request is opened.
+- sdk-core: [docs/review-checklist.md](https://github.com/xippios/sdk-core/blob/main/docs/review-checklist.md) — what the review of a pull request checks, in order.
+- sdk-x: [docs/adr.md](https://github.com/xippios/sdk-x/blob/main/docs/adr.md) — the index of this package's own decisions, generated from the records in `docs/adr/`.
+- sdk-x: [docs/upstream/FETCHED.md](https://github.com/xippios/sdk-x/blob/main/docs/upstream/FETCHED.md) — the snapshot of the upstream documentation, the reference for names, parameters and semantics.
+
 ## Licence
 
-Apache-2.0. See [LICENSE](LICENSE).
+Apache-2.0. See [LICENSE](https://github.com/xippios/sdk-x/blob/main/LICENSE).
