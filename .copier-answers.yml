@@ -1,5 +1,5 @@
 # Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
-_commit: v0.3.1
+_commit: v0.3.4
 _src_path: https://github.com/xippios/sdk-template.git
 api_base_url: https://api.x.com/2
 api_key_env: X_API_KEY
@@ -10,6 +10,7 @@ gateway: none
 has_files: false
 human: jdidaskalu
 import_path: x
+live_secrets: '[]'
 rate_limit_burst: 1
 rate_limit_per_minute: 60
 rate_limit_provenance: self-imposed
