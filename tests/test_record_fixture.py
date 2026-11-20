@@ -1,4 +1,4 @@
-"""The recorder: D1's rewrite and its verify, the accounts it refuses, its estimate.
+"""The recorder: its rewrite and its verify, the accounts it refuses, its estimate.
 
 The rewrite is tested on recorded fixtures changed in memory: their placeholders are put
 back to made-up text, standing for the text X sent, which the recorder never wrote, and
@@ -371,7 +371,7 @@ def test_requests_for_the_three_accounts_pass(
 def test_every_recorded_request_passes_the_guard(recorder: ModuleType) -> None:
     """The query of each recorded fixture, read back, is one the recorder admits today;
     ``most_recent_post_id`` is the one expansion any of them sends (``most_recent_three``
-    re-recorded without ``referenced_posts``, Johannes, 2026-10-29)."""
+    re-recorded without ``referenced_posts``, https://github.com/xippios/sdk-x/pull/4)."""
     assert recorder.ADMITTED["expansions"] == {"most_recent_post_id"}
     expansions: set[str] = set()
     for path in sorted(FIXTURES.glob("*/*.json")):

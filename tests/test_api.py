@@ -1,8 +1,8 @@
 """Replay tests for the nine endpoint wrappers (layer 1), one per recorded case.
 
 The fixtures were recorded on 2026-10-29 from @XDevelopers, @USDA and @FAO and from a List
-@XDevelopers owns, with the free text rewritten by the recorder (D1,
-``scripts/record_fixture.py``), so every ``text`` and ``description`` reads as its
+@XDevelopers owns, with the free text rewritten by the recorder
+(``scripts/record_fixture.py``), so every ``text`` and ``description`` reads as its
 placeholder, and so do the ``name``, ``username`` and ``location`` of the List's members.
 Each test calls the wrapper with the parameters the fixture was recorded with and compares
 what was sent with ``sent_query``; a page is dumped with ``dump_upstream`` and read back to
@@ -50,7 +50,7 @@ pytestmark = pytest.mark.anyio
 FIXTURES = Path(__file__).parent / "fixtures"
 TEXT = "[text rewritten]"
 DESCRIPTION = "[description rewritten]"
-PLAN_USER_FIELDS = [
+TASK_USER_FIELDS = [
     UserField.CREATED_AT,
     UserField.DESCRIPTION,
     UserField.LOCATION,
@@ -59,14 +59,14 @@ PLAN_USER_FIELDS = [
     UserField.VERIFIED_TYPE,
     UserField.URL,
 ]
-PLAN_POST_FIELDS = [
+TASK_POST_FIELDS = [
     PostField.CREATED_AT,
     PostField.LANG,
     PostField.PUBLIC_METRICS,
     PostField.CONVERSATION_ID,
 ]
-MEMBER_USER_FIELDS = [field for field in PLAN_USER_FIELDS if field is not UserField.URL]
-"""The plan's user fields but ``url``, which the recorder refuses for a List's members."""
+MEMBER_USER_FIELDS = [field for field in TASK_USER_FIELDS if field is not UserField.URL]
+"""The tasks' user fields but ``url``, which the recorder refuses for a List's members."""
 ACCOUNTS = {"2244994945": "XDevelopers", "61853389": "USDA", "19649135": "FAO"}
 START = datetime(2026, 7, 31, tzinfo=UTC)
 LIST_ID = "715919216927322112"
@@ -92,7 +92,7 @@ async def test_users_by_usernames_answered_in_the_guides_names(
     route = replay_fixture("get_users_by_usernames", "three_accounts")
     page = await api.get_users_by_usernames(
         ["XDevelopers", "USDA", "FAO"],
-        user_fields=PLAN_USER_FIELDS,
+        user_fields=TASK_USER_FIELDS,
         expansions=[UserExpansion.MOST_RECENT_POST_ID],
     )
     assert sent_query(route) == recorded("get_users_by_usernames", "three_accounts")
@@ -125,9 +125,9 @@ async def test_users_by_usernames_answered_in_the_documents_names(
     route = replay_fixture("get_users_by_usernames", "xdevelopers_post_fields")
     page = await api.get_users_by_usernames(
         ["XDevelopers"],
-        user_fields=PLAN_USER_FIELDS,
+        user_fields=TASK_USER_FIELDS,
         expansions=[UserExpansion.MOST_RECENT_POST_ID],
-        post_fields=PLAN_POST_FIELDS,
+        post_fields=TASK_POST_FIELDS,
     )
     assert sent_query(route) == recorded("get_users_by_usernames", "xdevelopers_post_fields")
     assert page.data is not None
@@ -149,7 +149,7 @@ async def test_users_by_usernames_partial_errors(replay_fixture: ReplayFixture) 
     """A username X does not find is a problem beside the users found, in an HTTP 200."""
     route = replay_fixture("get_users_by_usernames", "partial_errors")
     page = await api.get_users_by_usernames(
-        ["XDevelopers", "xippiosnouser01"], user_fields=PLAN_USER_FIELDS
+        ["XDevelopers", "xippiosnouser01"], user_fields=TASK_USER_FIELDS
     )
     assert sent_query(route) == recorded("get_users_by_usernames", "partial_errors")
     assert page.data is not None
@@ -189,7 +189,7 @@ async def test_posts_by_ids(replay_fixture: ReplayFixture) -> None:
     document's names (``edit_history_post_ids``, ``repost_count``), and no ``includes``."""
     route = replay_fixture("get_posts_by_ids", "most_recent_three")
     ids = ["2114879022433800258", "2115806101480337475", "2115789000682180921"]
-    page = await api.get_posts_by_ids(ids, post_fields=PLAN_POST_FIELDS)
+    page = await api.get_posts_by_ids(ids, post_fields=TASK_POST_FIELDS)
     assert sent_query(route) == recorded("get_posts_by_ids", "most_recent_three")
     assert "expansions" not in sent_query(route)
     assert page.data is not None
@@ -222,7 +222,7 @@ async def test_users_posts(
 ) -> None:
     """Ten posts asked for each account; @USDA's page held nine and a ``next_token``."""
     route = replay_fixture("get_users_posts", case)
-    page = await api.get_users_posts(user_id, max_results=10, post_fields=PLAN_POST_FIELDS)
+    page = await api.get_users_posts(user_id, max_results=10, post_fields=TASK_POST_FIELDS)
     assert sent_query(route) == recorded("get_users_posts", case)
     assert httpx.URL(sent_urls(route)[-1]).path == f"/2/users/{user_id}/tweets"
     assert page.data is not None
@@ -243,7 +243,7 @@ async def test_users_posts_unknown_id(replay_fixture: ReplayFixture) -> None:
     """An id without a User is an HTTP 200 with a problem and no ``data``: the page."""
     route = replay_fixture("get_users_posts", "unknown_id")
     page = await api.get_users_posts(
-        "9000000000000000000", max_results=10, post_fields=PLAN_POST_FIELDS
+        "9000000000000000000", max_results=10, post_fields=TASK_POST_FIELDS
     )
     assert sent_query(route) == recorded("get_users_posts", "unknown_id")
     assert page.data is None
@@ -323,7 +323,7 @@ async def test_search_posts_recent(replay_fixture: ReplayFixture) -> None:
     """Ten @USDA posts, newest first, the page's ids in ``meta`` and a ``next_token``; an
     edited post's earlier version is a post of its own, with the same edit history."""
     route = replay_fixture("search_posts_recent", "usda_ten")
-    page = await api.search_posts_recent("from:USDA", max_results=10, post_fields=PLAN_POST_FIELDS)
+    page = await api.search_posts_recent("from:USDA", max_results=10, post_fields=TASK_POST_FIELDS)
     assert sent_query(route) == recorded("search_posts_recent", "usda_ten")
     assert httpx.URL(sent_urls(route)[-1]).path == "/2/tweets/search/recent"
     assert page.data is not None
@@ -361,7 +361,7 @@ async def test_search_posts_recent_second_page(replay_fixture: ReplayFixture) ->
     assert meta.oldest_id is not None
     route = replay_fixture("search_posts_recent", "usda_ten_page_2")
     page = await api.search_posts_recent(
-        "from:USDA", max_results=10, post_fields=PLAN_POST_FIELDS, next_token=meta.next_token
+        "from:USDA", max_results=10, post_fields=TASK_POST_FIELDS, next_token=meta.next_token
     )
     sent = sent_query(route)
     assert without_token(sent) == without_token(recorded("search_posts_recent", "usda_ten_page_2"))
@@ -404,11 +404,11 @@ async def test_search_posts_recent_sends_the_documents_names(
 async def test_search_posts_recent_conversation(replay_fixture: ReplayFixture) -> None:
     """A conversation of @USDA's: the posts whose ``conversation_id`` is the id of the post
     that started it, that post among them, newest first; the replies' text rewritten, their
-    ids, times and metrics as sent (Johannes, 2026-10-29)."""
+    ids, times and metrics as sent (https://github.com/xippios/sdk-x/pull/8)."""
     root = "2115806101480337475"
     route = replay_fixture("search_posts_recent", "usda_conversation")
     page = await api.search_posts_recent(
-        f"conversation_id:{root}", max_results=10, post_fields=PLAN_POST_FIELDS
+        f"conversation_id:{root}", max_results=10, post_fields=TASK_POST_FIELDS
     )
     assert sent_query(route) == recorded("search_posts_recent", "usda_conversation")
     assert page.data is not None
@@ -470,7 +470,7 @@ async def test_lists_posts(replay_fixture: ReplayFixture) -> None:
     """Nine posts of the List's members for ten asked, newest first, with a
     ``next_token``; their text rewritten."""
     route = replay_fixture("get_lists_posts", "xdevelopers_list_ten")
-    page = await api.get_lists_posts(LIST_ID, max_results=10, post_fields=PLAN_POST_FIELDS)
+    page = await api.get_lists_posts(LIST_ID, max_results=10, post_fields=TASK_POST_FIELDS)
     assert sent_query(route) == recorded("get_lists_posts", "xdevelopers_list_ten")
     assert httpx.URL(sent_urls(route)[-1]).path == f"/2/lists/{LIST_ID}/tweets"
     assert page.data is not None

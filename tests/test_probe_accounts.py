@@ -1,6 +1,6 @@
 """The account probe: its replay over the recorded fixtures, its estimate, cap and waits.
 
-The run replays PR 3's fixtures over a list of the three recorded accounts written to a
+The run replays the wrappers' fixtures over a list of the three recorded accounts written to a
 temporary directory, into a temporary ``--out`` and ``--cache``; nothing is recorded and
 nothing reaches X. How the recorded answers stand in:
 
@@ -64,7 +64,7 @@ USAGE = {"data": {"project_usage": "1234", "project_cap": "3000000", "cap_reset_
 """A made-up answer in the document's ``Usage`` shape; X's own is not recorded."""
 TEXT = "[text rewritten]"
 SLACK = CLOCK_SLACK.total_seconds()
-"""This host's clock steps back about two seconds (``CLAUDE.md`` of the workspace)."""
+"""A host's clock can step back about two seconds (core's ``CLOCK_SLACK``)."""
 HANDLES = ("XDevelopers", "USDA", "FAO")
 ACCOUNTS = """\
 - handle: XDevelopers
@@ -200,7 +200,7 @@ def test_the_probe_replays_the_three_accounts_into_its_reports(
     listed: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Every call once in the plan's order, the CSV's rows and columns, the MD's sections and
+    """Every call once in the call plan's order, the CSV's rows and columns, the MD's sections and
     its decision line from the CSV's numbers; then a second run over the same cache."""
     out = listed.parent / "out"
     assert probe.main(spend_argv(listed, "1"), now=NOW) == 0
@@ -584,8 +584,8 @@ def test_the_command_line_refuses_a_spend_without_a_cap(
 def test_the_estimate_for_75_accounts_calls_nothing(
     probe: ModuleType, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """The plan's formula at N=75: 0.750 + 0.375 + 4.500 + 3.750 = 9.375 USD, which the plan
-    rounds to about 9.40; 527 requests."""
+    """The estimate's formula at N=75: 0.750 + 0.375 + 4.500 + 3.750 = 9.375 USD, about
+    9.40 rounded; 527 requests."""
     entries = [
         f"- {{handle: synthetic{n:02d}, category: c{n % 5}, region: US, check: candidate}}"
         for n in range(75)

@@ -1,18 +1,18 @@
-"""Probe a curated list of X accounts for activity: the gate P report (the plan §8, D4, D5).
+"""Probe a curated list of X accounts for activity and report go, US-only or no-go.
 
-Run from the repository root: the estimate first, which calls nothing, then the run under
+Run from the clone or a worktree: the estimate first, which calls nothing, then the run under
 a cap, the key in the environment through direnv::
 
     uv run scripts/probe_accounts.py --accounts .local/x-accounts.yaml
-    direnv exec ~/github/sdk uv run scripts/probe_accounts.py --spend --spend-cap 9.75
+    direnv exec . uv run scripts/probe_accounts.py --spend --spend-cap 9.75
 
-The list (D4, Johannes, 2026-10-29) is a YAML list of records ``handle, name, category,
-region, lang, why, check``, ``check`` either ``seen`` or ``candidate``; it names
-individuals, so it lives in ``.local/x-accounts.yaml``, which git ignores, and never in
-the repository. ``handle``, ``category``, ``region`` and ``check`` are required; ``region``
-``US`` and ``EU`` are the regions D5 names. The file holds the list bare or under the one
-key ``accounts``. A value with a comma, a ``why`` or a ``name``, is quoted in a one-line
-record, a flow mapping, where an unquoted comma starts a field of its own. A list the
+The list is a YAML list of records ``handle, name, category, region, lang, why, check``,
+``check`` either ``seen`` or ``candidate``; it names individuals, so it lives in
+``.local/x-accounts.yaml``, which git ignores, and never in the repository
+(https://github.com/xippios/sdk-x/pull/5). ``handle``, ``category``, ``region`` and ``check`` are
+required; ``region`` ``US`` and ``EU`` are the thresholds' regions. The file holds the list bare
+or under the one key ``accounts``. A value with a comma, a ``why`` or a ``name``, is quoted in a
+one-line record, a flow mapping, where an unquoted comma starts a field of its own. A list the
 probe refuses is named by its shape, an entry by its position and a field by its name,
 never by a value from the list.
 
@@ -32,7 +32,7 @@ by default):
    sample, for judging relevance by eye.
 5. One ``GET /2/usage/tweets`` after the run, printed; skipped when nothing was fetched.
 
-Spend. ``--estimate``, the default, prints N, the call plan and the plan's formula at the
+Spend. ``--estimate``, the default, prints N, the call plan and its formula at the
 prices of ``docs/upstream/pages/pricing.md`` (snapshot of 2026-10-29), and calls nothing:
 ``0.010·N + 0.005·N + 0.010·N·3·2 + 0.005·N·10`` USD, 9.375 at N=75. ``--spend`` needs
 ``--spend-cap USD``: it refuses before any call when the estimate exceeds the cap, and
@@ -61,24 +61,24 @@ leaves ``.local/``.
 
 Output (``--out DIR``, ``.local/`` by default): ``probe-<date>.csv``, one row per account
 (``COLUMNS``), and ``probe-<date>.md``, the summary by category and by region, the
-decision line against D5 and the samples, the only place post text appears. Only
+decision line against the thresholds and the samples, the only place post text appears. Only
 aggregates ever leave ``.local/``: the counts and the decision line, never a handle or a
 text. The console prints counts, waits, the spend, the decision line and the error that
 stops a run, in X's words where it gives them; it lists no handle and no text of its own.
 The wait and stop lines quote ``classify``'s method and path, which can carry a user id
 (``GET /2/users/<id>/tweets``): they are never pasted into a public record verbatim.
 
-Definitions and thresholds (D5, Johannes, 2026-10-29, the plan §8): an account is active
+Definitions and thresholds (https://github.com/xippios/sdk-x/pull/1): an account is active
 with at least one original post (neither a repost nor a reply) in the last 14 days, core
-with an average of at least two original posts a week over the window. Go: at least 50%
-of the measured accounts active, and at least 25 core over 4 or more categories. US-only:
-go holds for region US alone, but region EU has fewer than 5 core; it is checked first,
-since it narrows a go. No-go otherwise. Region and category are compared without regard
-to case, in the decision and the tables alike (``region_key``, ``category_key``). "The last
-k days" are k daily buckets, today's part and the k - 1 whole UTC days before it: 14 for
-active, 30 for each span of the trend, the window's D for the weekly average, D/7 weeks.
-``start_time`` is the UTC midnight D days before today's, so the oldest bucket X returns
-lies outside every window.
+with an average of at least two original posts a week over the window. Go: at least 50% of
+the measured accounts active, and at least 25 core over 4 or more categories. US-only: go
+holds for region US alone, but region EU has fewer than 5 core; it is checked first, since
+it narrows a go (https://github.com/xippios/sdk-x/pull/5). No-go otherwise. Region and
+category are compared without regard to case, in the decision and the tables alike
+(``region_key``, ``category_key``). "The last k days" are k daily buckets, today's part
+and the k - 1 whole UTC days before it: 14 for active, 30 for each span of the trend, the
+window's D for the weekly average, D/7 weeks. ``start_time`` is the UTC midnight D days
+before today's, so the oldest bucket X returns lies outside every window.
 """
 
 import argparse
@@ -154,7 +154,7 @@ GO_CATEGORIES = 4
 US_ONLY_EU_CORE = 5
 US = "US"
 EU = "EU"
-"""D5's definitions and thresholds (Johannes, 2026-10-29), the plan §8 as written."""
+"""The definitions and thresholds of https://github.com/xippios/sdk-x/pull/1, as written."""
 
 GO = "go"
 US_ONLY = "US-only"
@@ -247,7 +247,7 @@ class CapReached(Exception):
 
 @dataclass(frozen=True)
 class Account:
-    """One record of the account list (D4)."""
+    """One record of the account list."""
 
     handle: str
     category: str
@@ -402,7 +402,7 @@ def counts_pages(days: int) -> int:
 
 @dataclass(frozen=True)
 class Plan:
-    """The calls of a run over ``accounts`` accounts and the plan's formula: the estimate."""
+    """The calls of a run over ``accounts`` accounts and their formula: the estimate."""
 
     accounts: int
     days: int
@@ -700,7 +700,7 @@ def posts_from(
 
 @dataclass(frozen=True)
 class Activity:
-    """What one account's daily counts say, by D5's definitions."""
+    """What one account's daily counts say, by the definitions."""
 
     posts_14d: int
     posts_30d: int
@@ -716,7 +716,7 @@ class Activity:
 def measure(
     posts: Mapping[datetime, int], originals: Mapping[datetime, int], *, now: datetime, days: int
 ) -> Activity:
-    """D5's measures from the daily counts of all posts and of original posts.
+    """The measures from the daily counts of all posts and of original posts.
 
     Args:
         posts: Posts per day of ``from:<handle>``, by bucket start (``day_counts``).
@@ -820,7 +820,7 @@ def tally(rows: Iterable[Row]) -> Tally:
 
 @dataclass(frozen=True)
 class Decision:
-    """D5's answer and the numbers it rests on."""
+    """The decision and the numbers it rests on."""
 
     verdict: str
     everyone: Tally
@@ -829,7 +829,7 @@ class Decision:
 
 
 def decide(rows: Sequence[Row]) -> Decision:
-    """Go, US-only or no-go by D5's thresholds; US-only first, since it narrows a go."""
+    """Go, US-only or no-go by the thresholds; US-only first, since it narrows a go."""
     everyone = tally(rows)
     us = tally(row for row in rows if region_key(row) == US)
     eu_core = tally(row for row in rows if region_key(row) == EU).core
@@ -1186,7 +1186,7 @@ class Probe:
         return usage_line(payload)
 
     async def run(self) -> list[Row]:
-        """The calls in the plan's order; one row per listed account.
+        """The calls in the call plan's order; one row per listed account.
 
         Raises:
             CapReached: A request could take the spend past the cap; nothing more is sent.

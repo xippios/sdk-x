@@ -1,8 +1,8 @@
-"""Record one X API v2 exchange into a fixture, X Content rewritten (``/record-fixture``, D1).
+"""Record one X API v2 exchange into a fixture, X Content rewritten (``/record-fixture``).
 
-Run from the repository root, the key in the environment through direnv::
+Run from the clone or a worktree, the key in the environment through direnv::
 
-    direnv exec ~/github/sdk uv run scripts/record_fixture.py <wrapper> <case> key=value ...
+    direnv exec . uv run scripts/record_fixture.py <wrapper> <case> key=value ...
     uv run scripts/record_fixture.py get_users_by_usernames wrong_key usernames=FAO --wrong-key
 
 ``<wrapper>`` is one of the nine endpoint wrappers (``WRAPPERS``); the fixture lands at
@@ -20,9 +20,9 @@ request; ``GET /2/usage/tweets`` has no price on the page; a 4xx bills nothing, 
 resource read earlier in the same UTC day is not billed again. It records through a client
 that never retries (``RetryPolicy(max_attempts=1)``), so a 5xx spends no second request.
 
-The accounts. D1, decided by Johannes on 2026-10-29, records fixtures from @XDevelopers,
-@USDA and @FAO only (``ACCOUNTS``). The recorder's guard covers what a request names, its
-usernames, ids and query, and refuses before any request one that names another account:
+The accounts. Fixtures are recorded from @XDevelopers, @USDA and @FAO only (``ACCOUNTS``,
+https://github.com/xippios/sdk-x/pull/3). The recorder's guard covers what a request names,
+its usernames, ids and query, and refuses before any request one that names another account:
 
 - ``get_users_by_usernames``: every username in ``usernames`` is one of the three, in any
   letter case. ``--unknown`` admits exactly one other, for the partial-``errors`` case; the
@@ -46,7 +46,7 @@ usernames, ids and query, and refuses before any request one that names another 
   a post of the three as the recorded fixtures give them (as for ``get_posts_by_ids``):
   the conversation a post of theirs started, whose replies, other accounts' among them,
   are recorded as the List's are, every text rewritten, ids, times and metrics as sent
-  (Johannes, 2026-10-29; row 330, item 10).
+  (https://github.com/xippios/sdk-x/pull/8).
 - ``get_lists_posts`` and ``get_lists_members``: ``id`` is one of ``LISTS``, Lists owned
   by one of the three, read from ``GET /2/users/{id}/owned_lists`` on 2026-10-29.
   ``--unknown`` admits one other List id, for the not-found case; the answer is refused if
@@ -58,19 +58,19 @@ An expansion brings other objects into an answer, and a field can carry values t
 describe other accounts. So the recorder also refuses, before any request, every
 ``expansions``, ``user.fields`` and ``post.fields`` value outside ``ADMITTED``:
 
-- ``expansions``: ``most_recent_post_id`` alone, which brings a post of the requested user
-  and no user object. ``referenced_posts`` is refused (Johannes, 2026-10-29): it brings the
-  posts a post reposts, quotes or replies to, whoever wrote them.
+- ``expansions``: ``most_recent_post_id`` alone, which brings a post of the requested user and
+  no user object. ``referenced_posts`` is refused, since it brings the posts a post reposts,
+  quotes or replies to, whoever wrote them (https://github.com/xippios/sdk-x/pull/4).
   ``get_posts_by_ids/most_recent_three`` was re-recorded without it on 2026-10-29, and no
-  fixture carries another account's object but the two List fixtures, whose members and
-  posts are other accounts' by nature, and the conversation fixture, whose replies are
-  other accounts' among them (row 330, item 10).
-- ``user.fields``: the probe's plan with ``id``, ``name``, ``username`` and ``verified``.
+  fixture carries another account's object but the two List fixtures, whose members and posts
+  are other accounts' by nature (https://github.com/xippios/sdk-x/pull/7), and the
+  conversation fixture, whose replies are other accounts' among them (above).
+- ``user.fields``: the tasks' ``USER_FIELDS`` with ``id``, ``name``, ``username`` and ``verified``.
   ``url`` is among them, the requested users' own: the user objects of an answer are the
   requested users' only. ``get_lists_members`` is the exception (``NOT_ADMITTED_FOR``):
   its user objects are the List's members, other accounts, whose ``url`` the rewrite does
   not cover, so it refuses ``url``.
-- ``post.fields``: the plan with ``id`` and ``text``.
+- ``post.fields``: the tasks' ``POST_FIELDS`` with ``id`` and ``text``.
 
 The refusals exclude the values that describe other accounts and that the rewrite does not
 cover: ``profile_image_url``, ``entities`` (whose URL entities' ``title``, ``expanded_url``
@@ -79,10 +79,10 @@ they stay refused until the rewrite covers them.
 
 The rewrite. X's Developer Agreement, III.A (d), forbids distributing X Content to third
 parties beyond what it permits, and the Developer Policy permits Post, Direct Message and
-User IDs (``docs/upstream/terms/``). D1 (Johannes, 2026-10-29): the recorder rewrites
-``text``, ``description``, and the ``name``, ``username`` and ``location`` of every user
-other than the recorded accounts (@XDevelopers, @USDA, @FAO), by key on the ``Fixture``
-before the write; counts stay as sent. The ``Fixture`` is the one core's
+User IDs (``docs/upstream/terms/``). So the recorder rewrites ``text``, ``description``,
+and the ``name``, ``username`` and ``location`` of every user other than the recorded
+accounts (@XDevelopers, @USDA, @FAO), by key on the ``Fixture`` before the write; counts
+stay as sent (https://github.com/xippios/sdk-x/pull/4). The ``Fixture`` is the one core's
 ``fixture_from_response`` returns, without the headers that only identify a request, X's
 ``x-transaction-id`` among them, and is rewritten before the one write, which core's
 ``write_fixture`` makes (sdk-core ADR-0042, decision 4), the keys found at any depth of a
@@ -143,7 +143,7 @@ WRONG_KEY = "not-a-valid-key"  # pragma: allowlist secret (a deliberately invali
 MAX_FIXTURE_BYTES = 256 * 1024
 
 ACCOUNTS = ("XDevelopers", "USDA", "FAO")
-"""The only accounts fixtures are recorded from (D1, Johannes, 2026-10-29)."""
+"""The only accounts fixtures are recorded from (https://github.com/xippios/sdk-x/pull/3)."""
 _ACCOUNTS = frozenset(name.lower() for name in ACCOUNTS)
 
 PRICE_POST = 0.005
@@ -161,7 +161,7 @@ LISTS = {"715919216927322112": "XDevelopers"}
 Read from ``GET /2/users/2244994945/owned_lists`` (@XDevelopers) on 2026-10-29: the first
 of the three accounts read, it owns three public Lists. That answer is not kept, since
 ``owned_lists`` is not wrapped. A List's members are other accounts, whose free text the
-rewrite replaces (D1).
+rewrite replaces.
 """
 
 PLACEHOLDERS = {
@@ -171,7 +171,7 @@ PLACEHOLDERS = {
     "name": "[name rewritten]",
     "location": "[location rewritten]",
 }
-"""What D1's rewrite writes, by key; each keeps the value a string."""
+"""What the rewrite writes, by key; each keeps the value a string."""
 _OF_OTHER_USERS = ("username", "name", "location")
 
 ADMITTED = {
@@ -198,12 +198,12 @@ ADMITTED = {
 """The values the recorder sends for these parameters; any other is refused (docstring).
 
 The one expansion brings a post of the requested user and no user object, so an answer's
-objects are the requested users' and their posts only (Johannes, 2026-10-29), except in
-the List wrappers' answers, whose posts and users are the List's members', other accounts,
-and a conversation's search, whose replies are other accounts' among them: there
+objects are the requested users' and their posts only, except in the List wrappers'
+answers, whose posts and users are the List's members', other accounts, and a
+conversation's search, whose replies are other accounts' among them: there
 ``NOT_ADMITTED_FOR`` refuses ``url`` for ``get_lists_members``, and the field values
-admitted carry nothing of other accounts the rewrite leaves but their ids, creation dates
-and public metrics, kept as sent (row 330, item 10).
+admitted carry nothing of other accounts the rewrite leaves but their ids, creation
+dates and public metrics, kept as sent (https://github.com/xippios/sdk-x/pull/7).
 """
 NOT_ADMITTED_FOR = {"get_lists_members": {"user.fields": frozenset({"url"})}}
 """Values of ``ADMITTED`` a wrapper refuses: a List's members are other accounts, and a
@@ -416,7 +416,7 @@ def search_query_admitted(query: str) -> bool:
 
 
 def refusal(wrapper: str, params: dict[str, str], *, unknown: bool) -> str | None:
-    """Why the request must not be sent, else ``None`` (the accounts of D1, the names)."""
+    """Why the request must not be sent, else ``None`` (the three accounts, the names)."""
     operation = WRAPPERS.get(wrapper)
     if operation is None:
         return f"{wrapper!r} is not one of the nine wrappers ({', '.join(WRAPPERS)})"
@@ -523,7 +523,7 @@ def estimate(wrapper: str, params: dict[str, str], *, wrong_key: bool) -> tuple[
 
 
 def _rewrite(node: Any, path: str, originals: list[tuple[str, str]]) -> Any:
-    """``node`` with D1's rewrite applied, the rewritten values appended to ``originals``."""
+    """``node`` with the rewrite applied, the rewritten values appended to ``originals``."""
     if isinstance(node, list):
         return [_rewrite(item, f"{path}[{index}]", originals) for index, item in enumerate(node)]
     if not isinstance(node, dict):
@@ -542,7 +542,7 @@ def _rewrite(node: Any, path: str, originals: list[tuple[str, str]]) -> Any:
 
 
 def rewrite(fixture: Fixture) -> tuple[Fixture, list[tuple[str, str]]]:
-    """D1's rewrite on ``fixture``: the rewritten fixture and each value rewritten with its path.
+    """The rewrite on ``fixture``: the rewritten fixture and each value rewritten with its path.
 
     A body that is not JSON, or holds nothing to rewrite, is kept as sent, byte for byte.
     """

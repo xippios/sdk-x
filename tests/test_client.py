@@ -3,7 +3,7 @@
 The 401, the four 400s and the unknown ids' 200s are recorded (``tests/fixtures/``): a List
 id X does not find is answered with HTTP 200 and a problem, like a user id, not with a
 404. No 429, no usage cap and no 404 was recorded, since none can be provoked without
-spending a window or the budget: those tests build an ``httpx.Response`` in the shapes
+using up a window or the spending limit: those tests build an ``httpx.Response`` in the shapes
 ``pages/response-codes-and-errors.md`` and ``pages/rate-limits.md`` show. They test the
 mapping, not a fixture.
 """
@@ -40,7 +40,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 URL = "https://api.x.com/2/users/by?usernames=USDA"
 PROBLEM = "application/problem+json"
 SLACK = CLOCK_SLACK.total_seconds()
-"""This host's clock steps back about two seconds (``CLAUDE.md`` of the workspace)."""
+"""A host's clock can step back about two seconds (core's ``CLOCK_SLACK``)."""
 
 
 def recorded(wrapper: str, case: str) -> httpx.Response:
