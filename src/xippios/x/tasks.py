@@ -25,13 +25,13 @@ no expansion but ``lookup_users``' ``most_recent_post``.
 Release metadata, the same for every task: ``meta.source`` is the source slug ``"x"``,
 ``meta.endpoint`` the operation's id (``getUsersPosts``), ``meta.retrieved_at`` the time
 the answer arrived (the client caches nothing), ``meta.request`` the parameters sent,
-under the names X takes (``user.fields``, ``max_results``), a token's value ``REDACTED``
-by core's credential rule, which takes ``token`` as a whole word (core gap row 326), and
-``meta.total`` ``None``: X reports no count of the records matching a request, only
-``result_count``, the items of this page (ADR-0012). ``meta.published_at`` is ``None``
-for every task: X states no release time for a page, each post carries its own
-``created_at``, and a newest time the package computes across records is no release time
-(ADR-0022, reading of 2026-10-29; conventions §4; row 338 item 2). ``meta.vintage`` is
+under the names X takes (``user.fields``, ``max_results``), a paging token as sent, since
+``_client.py`` declares X's cursors data, and ``meta.total`` ``None``: X reports no count
+of the records matching a request, only ``result_count``, the items of this page
+(sdk-core ADR-0034). ``meta.published_at`` is ``None`` for every task: X states no
+release time for a page, each post carries its own ``created_at``, and a newest time the
+package computes across records is no release time (sdk-core ADR-0041, decision 1;
+conventions §4; row 338 item 2). ``meta.vintage`` is
 ``None``, X having no release identifier.
 
 A 200 that carries ``errors`` is returned as the page (partial errors), except that a page
@@ -77,7 +77,8 @@ __all__ = [  # noqa: RUF022
     "get_usage",
 ]
 
-# A task named here is Python-only: no tool, no route; the adapters skip it (ADR-0019 decision 4).
+# A task named here is Python-only: no tool, no route; the adapters skip it (sdk-core ADR-0040
+# decision 4).
 BULK_TASKS: frozenset[str] = frozenset()
 
 MCP_CAPS: Mapping[str, ResultCap] = {
@@ -117,23 +118,25 @@ MCP_CAPS: Mapping[str, ResultCap] = {
         note=("ask for fewer posts with max_results and page on with next_token to see the rest"),
     ),
 }
-"""Per-tool caps that hold a whole page (conventions §8; ADR-0016 decisions 2 and 4; row 338
-item 3).
+"""Per-tool caps that hold a whole page (conventions §8; sdk-core ADR-0038 decisions 2 and 4;
+row 338 item 3).
 
-A task's result is one page, a model rather than a list, so it is one row to the cap and
-``max_rows`` stays the family's 200; the byte bound is the one that cuts, and a cut turns
-the whole page into a note and a preview, its ``next_token`` lost. Measured on the recorded
-fixtures as core serialises them (compact JSON, ``None`` fields included): a post is about
-960 bytes besides its ``text``, at most 280 characters, a user about 800 besides its free
-texts (a ``description`` of at most 160 characters, a ``name`` of 50, a ``location`` of
-30), a count's bucket 77 bytes, the envelope about 600. So 100 posts with 280-character
-ASCII texts take 100 x (960 + 280) + 600 = 124,600 bytes, under 128,000 for the post
-tools; 100 users with the longest free texts 100 x (800 + 240) + 600 = 104,600, under
-160,000 for ``lookup_users``, which leaves room for non-ASCII text, and with
+A task's result is one page, a model that holds one list, its posts, users or buckets, and
+within its byte bound it returns whole, however many rows it holds; ``max_rows`` stays the
+family's 200. Past the byte bound its rows are cut, to the row and the byte bound, with
+the note, and its other fields stay whole, ``next_token`` among them, which leads past the
+rows the cut left out: asking again for fewer, as the note says, shows them. Measured on
+the recorded fixtures as core serialises them (compact JSON, ``None`` fields included): a
+post is about 960 bytes besides its ``text``, at most 280 characters, a user about 800
+besides its free texts (a ``description`` of at most 160 characters, a ``name`` of 50, a
+``location`` of 30), a count's bucket 77 bytes, the envelope about 600. So 100 posts with
+280-character ASCII texts take 100 x (960 + 280) + 600 = 124,600 bytes, under 128,000 for
+the post tools; 100 users with the longest free texts 100 x (800 + 240) + 600 = 104,600,
+under 160,000 for ``lookup_users``, which leaves room for non-ASCII text, and with
 ``most_recent_post`` each user brings a post besides, 100 x (1,040 + 1,240) + 600 =
-228,600, so about 70 users with their posts fit. ``count_posts`` keeps the family's
-64 KB: a page of 31 days of hours, 744 buckets, takes 744 x 78 + 400 = 58,432 bytes, and
-only minutes over more than about 14 hours (about 840 buckets) pass it. ``get_usage``, at most
+228,600, so about 70 users with their posts fit. ``count_posts`` keeps the family's 64 KB:
+a page of 31 days of hours, 744 buckets, takes 744 x 78 + 400 = 58,432 bytes, and only
+minutes over more than about 14 hours (about 840 buckets) pass it. ``get_usage``, at most
 90 days, stays under the default and has no entry. Each note names the tool's own
 parameters.
 """
@@ -270,7 +273,7 @@ async def get_user_posts_async(
             ``50``.
         pagination_token: The page to return: pass the ``next_token`` from the previous
             page's ``meta`` (``data.meta.next_token``); ``None``, the default, returns the
-            newest page. ``meta.request`` shows it as ``REDACTED``.
+            newest page. ``meta.request`` keeps it as sent.
         start_time: The oldest creation time, a datetime with a zone on or after
             2010-11-06, e.g. ``"2026-10-01T00:00:00Z"``; ``None`` sets no bound.
         end_time: The newest creation time, likewise, e.g. ``"2026-10-29T00:00:00Z"``.
@@ -324,7 +327,7 @@ async def search_recent_posts_async(
             ``50``.
         next_token: The page to return: pass the ``next_token`` from the previous page's
             ``meta`` (``data.meta.next_token``); ``None``, the default, returns the newest
-            page. ``meta.request`` shows it as ``REDACTED``.
+            page. ``meta.request`` keeps it as sent.
         start_time: The oldest creation time, a datetime with a zone within the last
             seven days, e.g. ``"2026-10-27T00:00:00Z"``; ``None`` sets no bound.
         end_time: The newest creation time, likewise, e.g. ``"2026-10-29T12:00:00Z"``.
@@ -383,7 +386,7 @@ async def count_posts_async(
         end_time: The newest time counted, likewise, e.g. ``"2026-10-29T00:00:00Z"``.
         next_token: The page to return: pass the ``next_token`` from the previous page's
             ``meta`` (``data.meta.next_token``); ``None``, the default, returns the first
-            page. ``meta.request`` shows it as ``REDACTED``.
+            page. ``meta.request`` keeps it as sent.
     """
     sent = _query(query, COUNTS_QUERY_LIMIT)
     page = await api.get_posts_counts_all(
@@ -429,7 +432,7 @@ async def get_list_posts_async(
             ``50``.
         pagination_token: The page to return: pass the ``next_token`` from the previous
             page's ``meta`` (``data.meta.next_token``); ``None``, the default, returns the
-            newest page. ``meta.request`` shows it as ``REDACTED``.
+            newest page. ``meta.request`` keeps it as sent.
     """
     page = await api.get_lists_posts(
         id, max_results=max_results, pagination_token=pagination_token, post_fields=POST_FIELDS
@@ -472,7 +475,7 @@ async def get_conversation_posts_async(
             ``50``.
         next_token: The page to return: pass the ``next_token`` from the previous page's
             ``meta`` (``data.meta.next_token``); ``None``, the default, returns the newest
-            page. ``meta.request`` shows it as ``REDACTED``.
+            page. ``meta.request`` keeps it as sent.
     """
     query = f"conversation_id:{matching('conversation_id', conversation_id, _POST_ID)}"
     page = await api.search_posts_recent(
