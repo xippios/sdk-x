@@ -77,6 +77,13 @@ def recorded(wrapper: str, case: str) -> dict[str, str]:
     return recorded_query(load_fixture(fixture_path(FIXTURES, wrapper, case)))
 
 
+def without_token(query: dict[str, str]) -> dict[str, str]:
+    """``query`` without ``next_token``: the two page-2 fixtures were recorded while core's
+    rule took it for a credential, so their recorded query reads it ``REDACTED``. It goes
+    with the recording of https://github.com/xippios/sdk-x/issues/31."""
+    return {name: value for name, value in query.items() if name != "next_token"}
+
+
 async def test_users_by_usernames_answered_in_the_guides_names(
     replay_fixture: ReplayFixture,
 ) -> None:
@@ -269,8 +276,8 @@ async def test_posts_counts_all_by_day(replay_fixture: ReplayFixture) -> None:
 
 
 async def test_posts_counts_all_second_page(replay_fixture: ReplayFixture) -> None:
-    """``next_token`` leads to the 31 days before; core's scrub keeps the token out of
-    the recorded URL and ``sent_query`` alike (a credential name by its rule)."""
+    """``next_token`` leads to the 31 days before and goes out as given: X's cursors are
+    data (``_client.py``), which the fixture's recorded URL, older, does not show."""
     first = load_fixture(fixture_path(FIXTURES, "get_posts_counts_all", "usda_by_day"))
     token = GetPostsCountsAllResponse.model_validate_json(first.response.body).meta
     assert token is not None
@@ -279,8 +286,11 @@ async def test_posts_counts_all_second_page(replay_fixture: ReplayFixture) -> No
     page = await api.get_posts_counts_all(
         "from:USDA", granularity=Granularity.DAY, start_time=START, next_token=token.next_token
     )
-    assert sent_query(route) == recorded("get_posts_counts_all", "usda_by_day_page_2")
-    assert sent_query(route)["next_token"] == "REDACTED"
+    sent = sent_query(route)
+    assert without_token(sent) == without_token(
+        recorded("get_posts_counts_all", "usda_by_day_page_2")
+    )
+    assert sent["next_token"] == token.next_token
     assert page.data is not None
     assert len(page.data) == 31
     assert page.data[-1].end == datetime(2026, 9, 29, tzinfo=UTC)
@@ -342,8 +352,8 @@ async def test_search_posts_recent(replay_fixture: ReplayFixture) -> None:
 
 
 async def test_search_posts_recent_second_page(replay_fixture: ReplayFixture) -> None:
-    """``next_token`` leads to the ten posts before; the scrub keeps the token out of the
-    recorded URL and ``sent_query`` alike."""
+    """``next_token`` leads to the ten posts before and goes out as given, which the
+    fixture's recorded URL, older, does not show."""
     first = load_fixture(fixture_path(FIXTURES, "search_posts_recent", "usda_ten"))
     meta = SearchPostsRecentResponse.model_validate_json(first.response.body).meta
     assert meta is not None
@@ -353,8 +363,9 @@ async def test_search_posts_recent_second_page(replay_fixture: ReplayFixture) ->
     page = await api.search_posts_recent(
         "from:USDA", max_results=10, post_fields=PLAN_POST_FIELDS, next_token=meta.next_token
     )
-    assert sent_query(route) == recorded("search_posts_recent", "usda_ten_page_2")
-    assert sent_query(route)["next_token"] == "REDACTED"
+    sent = sent_query(route)
+    assert without_token(sent) == without_token(recorded("search_posts_recent", "usda_ten_page_2"))
+    assert sent["next_token"] == meta.next_token
     assert page.data is not None
     assert len(page.data) == 10
     assert all(int(post.id) < int(meta.oldest_id) for post in page.data)
@@ -381,7 +392,7 @@ async def test_search_posts_recent_sends_the_documents_names(
     assert sent_query(route) == {
         "query": "from:USDA -is:retweet -is:reply",
         "max_results": "100",
-        "pagination_token": "REDACTED",
+        "pagination_token": "page-2",
         "start_time": "2026-10-27T00:00:00Z",
         "until_id": "2115854906124861473",
         "sort_order": "relevancy",
@@ -515,8 +526,9 @@ async def test_lists_members(replay_fixture: ReplayFixture) -> None:
 
 
 async def test_lists_members_sends_the_documents_names(replay_fixture: ReplayFixture) -> None:
-    """``pagination_token`` goes out as given, the expansion and post fields under the
-    document's names; the answer is the recorded page, mounted on its path."""
+    """``pagination_token`` goes out as given, as ``sent_query`` shows it, the expansion and
+    post fields under the document's names; the answer is the recorded page, mounted on its
+    path."""
     route = replay_fixture("get_lists_members", "xdevelopers_list_ten")
     await api.get_lists_members(
         LIST_ID,
@@ -525,7 +537,7 @@ async def test_lists_members_sends_the_documents_names(replay_fixture: ReplayFix
         post_fields=[PostField.CREATED_AT],
     )
     assert sent_query(route) == {
-        "pagination_token": "REDACTED",
+        "pagination_token": "1710819323648428707",
         "expansions": "most_recent_post_id",
         "post.fields": "created_at",
     }

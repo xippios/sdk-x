@@ -190,7 +190,7 @@ def test_a_body_that_is_not_json_maps_by_status() -> None:
 
 
 async def test_retries_wait_out_a_short_reset() -> None:
-    """A 429 whose window resets now is retried at once (ADR-0010, decision 3)."""
+    """A 429 whose window resets now is retried at once (sdk-core ADR-0033, decision 3)."""
     waits: list[float] = []
 
     async def sleep(seconds: float) -> None:

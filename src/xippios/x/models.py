@@ -8,8 +8,8 @@ openapi.json`` (version 2.173) under its names: ``User``, ``Post``, ``Expansions
 document gives is a field here, optional unless the document requires it (``id`` of a
 ``User`` and a ``Post`` is required too: it is the object's identifier, sent in every
 recorded answer).
-Times parse to ``datetime``; the document's enumerations are ``StrEnum`` (ADR-0008),
-written by hand below since ``enums.py`` holds only what the refresh script generates. An
+Times parse to ``datetime``; the document's enumerations are ``StrEnum`` (sdk-core ADR-0031),
+written by hand below, since the package packages no list to generate them from. An
 object the document gives no properties for (``article``, ``non_public_metrics``), or
 that no wrapper here requests yet (``entities``, ``context_annotations``, the ``media``,
 ``places``, ``polls``, ``topics`` and ``calls`` of ``includes``), is kept as sent, JSON
@@ -101,7 +101,7 @@ def _either(name: str, guides: str) -> AliasChoices:
 # schemas'
 # (PostReferencedPosts, UserWithheld, PostWithheld, UserConnectionStatus).
 # The adapters publish each class docstring as the schema's description, so it names the
-# upstream list and the snapshot it comes from (conventions §8, ADR-0008).
+# upstream list and the snapshot it comes from (conventions §8, sdk-core ADR-0031).
 
 
 class UserField(StrEnum):

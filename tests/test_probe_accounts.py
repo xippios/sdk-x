@@ -109,6 +109,17 @@ def served(case: str) -> httpx.Response:
     )
 
 
+COUNTS_CASES = ("usda_by_day", "usda_originals_by_day", "usda_by_day_page_2")
+
+
+def next_token(case: str) -> str:
+    """The ``next_token`` of ``get_posts_counts_all/<case>``'s recorded answer."""
+    fixture = load_fixture(fixture_path(FIXTURES, "get_posts_counts_all", case))
+    token = json.loads(fixture.response.body)["meta"]["next_token"]
+    assert isinstance(token, str)
+    return token
+
+
 def counts_answer(request: httpx.Request) -> httpx.Response:
     """USDA's recorded counts for every counts query (the module docstring)."""
     if "next_token" in request.url.params:
@@ -229,7 +240,13 @@ def test_the_probe_replays_the_three_accounts_into_its_reports(
         for _ in range(3)
     ]
     assert [params["query"] for params in sent] == expected_queries
-    assert [params.get("next_token") for params in sent] == [None, "REDACTED", "REDACTED"] * 6
+    tokens = {case: next_token(case) for case in COUNTS_CASES}
+    assert [params.get("next_token") for params in sent] == [
+        token
+        for _ in HANDLES
+        for first in ("usda_by_day", "usda_originals_by_day")
+        for token in (None, tokens[first], tokens["usda_by_day_page_2"])
+    ], "each page sends the token of the page before as it came: X's cursors are data"
 
     with (out / "probe-2026-10-29.csv").open(encoding="utf-8", newline="") as stream:
         reader = csv.DictReader(stream)

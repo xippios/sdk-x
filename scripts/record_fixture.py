@@ -83,9 +83,10 @@ User IDs (``docs/upstream/terms/``). D1 (Johannes, 2026-10-29): the recorder rew
 ``text``, ``description``, and the ``name``, ``username`` and ``location`` of every user
 other than the recorded accounts (@XDevelopers, @USDA, @FAO), by key on the ``Fixture``
 before the write; counts stay as sent. The ``Fixture`` is the one core's
-``fixture_from_response`` returns, rewritten before the one write (ADR-0024, decision 4),
-the keys found at any depth of a JSON response body, ``includes``, ``entities`` and
-``errors`` alike:
+``fixture_from_response`` returns, without the headers that only identify a request, X's
+``x-transaction-id`` among them, and is rewritten before the one write, which core's
+``write_fixture`` makes (sdk-core ADR-0042, decision 4), the keys found at any depth of a
+JSON response body, ``includes``, ``entities`` and ``errors`` alike:
 
 - every ``text`` (a post's, a ``note_tweet``'s or ``note_post``'s) becomes ``[text
   rewritten]``;
@@ -124,7 +125,15 @@ from typing import Any
 
 import httpx
 from xippios.core import AsyncClient, BearerAuth, RetryPolicy, sync
-from xippios.core.testing import REDACTED, Fixture, Scrub, fixture_from_response, fixture_path
+from xippios.core.testing import (
+    REDACTED,
+    Fixture,
+    Scrub,
+    fixture_from_response,
+    fixture_path,
+    fixture_text,
+    write_fixture,
+)
 
 from xippios.x._client import API_KEY_ENV, SOURCE, config
 
@@ -610,18 +619,6 @@ def unknown_answered(wrapper: str, fixture: Fixture) -> str | None:
     return None
 
 
-_CUT_MARKS = ("truncated", "original_bytes", "original_count", "sha256")
-
-
-def to_json(fixture: Fixture) -> str:
-    """The fixture as text, laid out as core's writer lays it out (no cut: no cut marks)."""
-    data = fixture.model_dump(mode="json")
-    if not fixture.response.truncated:
-        for name in _CUT_MARKS:
-            data["response"].pop(name, None)
-    return json.dumps(data, indent=2, sort_keys=True) + "\n"
-
-
 async def exchange_async(client: AsyncClient, path: str, params: dict[str, str]) -> httpx.Response:
     """One GET through ``client``; an error status is returned, not raised."""
     return await client.request("GET", path, params=params, raise_on_error=False)
@@ -707,12 +704,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"not written {path.relative_to(ROOT)}: rewritten values survive at " + ", ".join(left)
         )
         return 1
-    text = to_json(fixture)
-    if len(text.encode("utf-8")) > MAX_FIXTURE_BYTES:
+    if len(fixture_text(fixture).encode("utf-8")) > MAX_FIXTURE_BYTES:
         print(f"not written {path.relative_to(ROOT)}: over 256 KiB; narrow the request")  # noqa: T201
         return 1
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
+    write_fixture(fixture, path)
     print(f"written {path.relative_to(ROOT)}: {len(originals)} values rewritten")  # noqa: T201
     return 0
 

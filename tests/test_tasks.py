@@ -10,10 +10,14 @@ free text rewritten (D1): ``lookup_users`` replays ``get_users_by_usernames``'
 ``unbalanced_parenthesis``; ``count_posts`` ``get_posts_counts_all/usda_by_day`` and
 ``usda_by_day_page_2``; ``get_list_posts`` ``get_lists_posts/xdevelopers_list_ten`` and
 ``unknown_id``; ``get_conversation_posts`` ``search_posts_recent/usda_conversation``;
-``get_usage`` ``get_usage/seven_days``. Three answers no recording gave are built in
-memory from recorded ones and named as such: a lookup that finds no username, a page of
-100 posts with 280-character texts and 930 count buckets, the last two for the MCP
-result caps.
+``get_usage`` ``get_usage/seven_days``. The two page-2 fixtures were recorded while
+core's rule still took ``next_token`` for a credential, so their recorded query reads it
+``REDACTED``: a test compares the rest of the query with them and the token with the one
+it passed, until a recording writes them again. Answers no recording gave are built in
+memory from recorded ones and named as such: a lookup that finds no username, and for the
+MCP result caps pages of 100 posts with 280-character texts, in Latin and in a script of
+three bytes a character, with and without a problem in ``errors``, lookups of 100 users,
+and 930 and 744 count buckets.
 
 Then the adapters: the MCP server through core's in-process client (its seven tools, its
 caps, a whole page and a cut one, the error answers) and the HTTP router (its routes, an
@@ -90,6 +94,12 @@ def recorded(wrapper: str, case: str) -> dict[str, str]:
 
 def body(wrapper: str, case: str) -> Any:
     return json.loads(load_fixture(fixture_path(FIXTURES, wrapper, case)).response.body)
+
+
+def without_token(query: dict[str, str]) -> dict[str, str]:
+    """``query`` without ``next_token``, which a page-2 fixture recorded ``REDACTED``; it goes
+    with the recording of https://github.com/xippios/sdk-x/issues/31."""
+    return {name: value for name, value in query.items() if name != "next_token"}
 
 
 def assert_meta(meta: ResultMeta, endpoint: str, before: datetime, after: datetime) -> None:
@@ -199,9 +209,9 @@ def test_get_user_posts(replay_fixture: ReplayFixture) -> None:
 
 
 def test_get_user_posts_sends_the_token_and_the_times(replay_fixture: ReplayFixture) -> None:
-    """The paging token and the times go out as the wrapper sends them; ``meta.request``
-    shows the token ``REDACTED`` (core's rule, row 326). The answer is the recorded page,
-    mounted on its path: no second page of the user's was recorded."""
+    """The paging token and the times go out as the wrapper sends them, and ``meta.request``
+    keeps the token as sent: X's cursors are data (``_client.py``). The answer is the
+    recorded page, mounted on its path: no second page of the user's was recorded."""
     route = replay_fixture("get_users_posts", "usda_ten")
     token = GetUsersPostsResponse.model_validate(body("get_users_posts", "usda_ten")).meta
     assert token is not None
@@ -215,12 +225,12 @@ def test_get_user_posts_sends_the_token_and_the_times(replay_fixture: ReplayFixt
     )
     assert sent_query(route) == {
         "max_results": "100",
-        "pagination_token": "REDACTED",
+        "pagination_token": token.next_token,
         "start_time": "2026-10-01T00:00:00Z",
         "end_time": "2026-10-29T00:00:00Z",
         "post.fields": ",".join(POST_FIELDS),
     }
-    assert result.meta.request["pagination_token"] == "REDACTED"
+    assert result.meta.request["pagination_token"] == token.next_token
     assert result.meta.request["start_time"] == "2026-10-01T00:00:00Z"
 
 
@@ -255,15 +265,18 @@ def test_search_recent_posts(replay_fixture: ReplayFixture) -> None:
 
 
 def test_search_recent_posts_second_page(replay_fixture: ReplayFixture) -> None:
-    """The first page's ``next_token`` leads to the ten posts before."""
+    """The first page's ``next_token`` leads to the ten posts before; it goes out and stays
+    in ``meta.request`` as sent."""
     first = SearchPostsRecentResponse.model_validate(body("search_posts_recent", "usda_ten"))
     assert first.meta is not None
     assert first.meta.next_token is not None
     assert first.meta.oldest_id is not None
     route = replay_fixture("search_posts_recent", "usda_ten_page_2")
     result = tasks.search_recent_posts("from:USDA", next_token=first.meta.next_token)
-    assert sent_query(route) == recorded("search_posts_recent", "usda_ten_page_2")
-    assert result.meta.request["next_token"] == "REDACTED"
+    sent = sent_query(route)
+    assert without_token(sent) == without_token(recorded("search_posts_recent", "usda_ten_page_2"))
+    assert sent["next_token"] == first.meta.next_token
+    assert result.meta.request["next_token"] == first.meta.next_token
     assert result.data.data is not None
     assert all(int(post.id) < int(first.meta.oldest_id) for post in result.data.data)
 
@@ -319,8 +332,12 @@ def test_count_posts_second_page(replay_fixture: ReplayFixture) -> None:
         start_time=datetime(2026, 7, 31, tzinfo=UTC),
         next_token=first.meta.next_token,
     )
-    assert sent_query(route) == recorded("get_posts_counts_all", "usda_by_day_page_2")
-    assert result.meta.request["next_token"] == "REDACTED"
+    sent = sent_query(route)
+    assert without_token(sent) == without_token(
+        recorded("get_posts_counts_all", "usda_by_day_page_2")
+    )
+    assert sent["next_token"] == first.meta.next_token
+    assert result.meta.request["next_token"] == first.meta.next_token
     assert result.data.data is not None
     assert result.data.data[-1].end <= first.data[0].start
 
@@ -441,9 +458,10 @@ async def test_the_server_lists_the_seven_tools_in_order() -> None:
 
 
 def test_the_caps_hold_a_whole_page() -> None:
-    """A page is one row to the cap, so ``max_rows`` stays 200; the bytes hold 100 posts or
-    100 users as core serialises them, ``count_posts`` keeps 64 KB, ``get_usage`` has no
-    entry, and every note names the tool's own parameters (row 338 item 3)."""
+    """A page's list is its rows, cut past the byte bound to the row bound, which stays the
+    family's 200; the bytes hold 100 posts or 100 users as core serialises them,
+    ``count_posts`` keeps 64 KB, ``get_usage`` has no entry, and every note names the tool's
+    own parameters (row 338 item 3)."""
     caps = tasks.MCP_CAPS
     assert set(caps) == set(tasks.__all__) - {"get_usage"}
     assert {name: (cap.max_rows, cap.max_bytes) for name, cap in caps.items()} == {
@@ -514,26 +532,163 @@ async def test_a_page_of_100_posts_comes_whole(respx_mock: respx.MockRouter) -> 
 
 
 @pytest.mark.anyio
+async def test_a_page_past_its_byte_bound_keeps_the_posts_that_fit(
+    respx_mock: respx.MockRouter,
+) -> None:
+    """The same 100 posts in a script of three bytes a character pass the 128,000 bytes:
+    the posts that fit come, the page's other fields whole, its ``next_token`` kept, which
+    leads past the posts the cut left out, and the note names the tool's parameters. The
+    answer is built in memory as above: no such page was recorded."""
+    answer = body("search_posts_recent", "usda_ten")
+    answer["data"] = [{**post, "text": "\u4e2d" * 280} for post in answer["data"] * 10]
+    answer["meta"]["result_count"] = len(answer["data"])
+    respx_mock.get("https://api.x.com/2/tweets/search/recent").mock(
+        return_value=httpx.Response(200, json=answer)
+    )
+    text = await mcp_call_text(
+        server, "x_search_recent_posts", {"query": "from:USDA", "max_results": 100}
+    )
+    assert len(text.encode()) <= 128_000
+    payload = json.loads(text)
+    shown = len(payload["data"]["data"])
+    assert 0 < shown < 100
+    posts = [post["id"] for post in answer["data"]]
+    assert [post["id"] for post in payload["data"]["data"]] == posts[:shown], "newest first"
+    assert payload["data"]["meta"]["next_token"] == answer["meta"]["next_token"]
+    assert payload["data"]["meta"]["result_count"] == 100
+    assert payload["meta"]["endpoint"] == "searchPostsRecent"
+    note = tasks.MCP_CAPS["search_recent_posts"].note
+    assert payload["note"] == (
+        f"showing {shown} of 100 rows (cap: 200 rows or 128000 bytes); {note}"
+    )
+
+
+@pytest.mark.anyio
 async def test_minute_counts_over_a_long_range_are_cut_with_the_note(
     respx_mock: respx.MockRouter,
 ) -> None:
-    """930 buckets pass the 64 KB ``count_posts`` keeps: the result is a note and a
-    preview, the note pointing to day or hour buckets and a shorter range. The answer is
-    ``get_posts_counts_all/usda_by_day``'s 31 buckets thirty times over, standing for 930
-    minutes, built in memory: no minute counts were recorded."""
+    """930 buckets pass the 64 KB ``count_posts`` keeps: the buckets are cut to the
+    family's 200 rows, the oldest first as sent, ``total_post_count`` and the
+    ``next_token`` kept, and the note points to day or hour buckets and a shorter range.
+    The answer is ``get_posts_counts_all/usda_by_day``'s 31 buckets thirty times over,
+    standing for 930 minutes, built in memory: no minute counts were recorded."""
     answer = body("get_posts_counts_all", "usda_by_day")
     answer["data"] = answer["data"] * 30
     respx_mock.get("https://api.x.com/2/tweets/counts/all").mock(
         return_value=httpx.Response(200, json=answer)
     )
-    payload = await mcp_call(
+    text = await mcp_call_text(
         server, "x_count_posts", {"query": "from:USDA", "granularity": "minute"}
     )
-    assert set(payload) == {"note", "preview"}
+    assert len(text.encode()) <= 65_536
+    payload = json.loads(text)
+    starts = [datetime.fromisoformat(bucket["start"]) for bucket in answer["data"]]
+    assert [datetime.fromisoformat(bucket["start"]) for bucket in payload["data"]["data"]] == (
+        starts[:200]
+    )
+    assert payload["data"]["meta"]["next_token"] == answer["meta"]["next_token"]
+    assert payload["data"]["meta"]["total_post_count"] == answer["meta"]["total_tweet_count"]
     note = tasks.MCP_CAPS["count_posts"].note
-    assert note is not None
-    assert payload["note"].endswith(f"over the cap of 65536; {note}")
-    assert len(payload["preview"].encode()) <= 65_536
+    assert payload["note"] == f"showing 200 of 930 rows (cap: 200 rows or 65536 bytes); {note}"
+
+
+@pytest.mark.anyio
+async def test_a_month_of_hour_counts_comes_whole(respx_mock: respx.MockRouter) -> None:
+    """744 buckets, a page of 31 days by hour, fit the 64 KB ``count_posts`` keeps and
+    come whole, past the family's 200 rows, since rows are cut only past the byte bound.
+    The answer is ``usda_by_day``'s 31 buckets 24 times over, built in memory."""
+    answer = body("get_posts_counts_all", "usda_by_day")
+    answer["data"] = answer["data"] * 24
+    respx_mock.get("https://api.x.com/2/tweets/counts/all").mock(
+        return_value=httpx.Response(200, json=answer)
+    )
+    payload = await mcp_call(server, "x_count_posts", {"query": "from:USDA"})
+    assert "note" not in payload
+    assert len(payload["data"]["data"]) == 744
+
+
+def posts_past_the_bound() -> Any:
+    """``search_posts_recent/usda_ten``'s ten posts ten times over, each text 280 characters
+    of three bytes, 179 KB as core serialises them: past the post tools' 128,000 bytes."""
+    answer = body("search_posts_recent", "usda_ten")
+    answer["data"] = [{**post, "text": "\u4e2d" * 280} for post in answer["data"] * 10]
+    answer["meta"]["result_count"] = len(answer["data"])
+    return answer
+
+
+def problem() -> Any:
+    """The problem X answers for a username it does not find, ``partial_errors``' first."""
+    return body("get_users_by_usernames", "partial_errors")["errors"][0]
+
+
+@pytest.mark.anyio
+async def test_a_page_with_errors_past_its_byte_bound_is_a_preview(
+    respx_mock: respx.MockRouter,
+) -> None:
+    """A page that carries ``errors`` beside ``data`` holds two lists, so core does not cut
+    its rows: past the bound it is a note and a preview, which loses the ``next_token``, as
+    before core 0.4.0. The answer is the page above with one problem, built in memory."""
+    answer = {**posts_past_the_bound(), "errors": [problem()]}
+    respx_mock.get("https://api.x.com/2/tweets/search/recent").mock(
+        return_value=httpx.Response(200, json=answer)
+    )
+    payload = await mcp_call(
+        server, "x_search_recent_posts", {"query": "from:USDA", "max_results": 100}
+    )
+    assert set(payload) == {"note", "preview"}
+    note = tasks.MCP_CAPS["search_recent_posts"].note
+    assert payload["note"].endswith(f"over the cap of 128000; {note}")
+    assert answer["meta"]["next_token"] not in payload["preview"]
+
+
+def users_with_posts(text: str) -> Any:
+    """100 users, ``xdevelopers_post_fields``' user under 100 ids, each with a post of 280
+    characters of ``text`` in ``includes.posts``, built in memory."""
+    recorded = body("get_users_by_usernames", "xdevelopers_post_fields")
+    user, post = recorded["data"][0], recorded["includes"]["posts"][0]
+    return {
+        "data": [{**user, "id": str(1000 + n)} for n in range(100)],
+        "includes": {
+            "posts": [{**post, "id": str(5000 + n), "text": text * 280} for n in range(100)]
+        },
+    }
+
+
+@pytest.mark.anyio
+async def test_a_lookup_cut_keeps_its_includes_whole(respx_mock: respx.MockRouter) -> None:
+    """100 users with their posts in Latin text pass ``lookup_users``' 160,000 bytes: the
+    users that fit come, and ``includes``, another field of the page, stays whole."""
+    answer = users_with_posts("x")
+    respx_mock.get("https://api.x.com/2/users/by").mock(
+        return_value=httpx.Response(200, json=answer)
+    )
+    payload = await mcp_call(
+        server, "x_lookup_users", {"usernames": ["XDevelopers"], "most_recent_post": True}
+    )
+    shown = len(payload["data"]["data"])
+    assert 0 < shown < 100
+    assert len(payload["data"]["includes"]["posts"]) == 100
+    assert payload["note"].startswith(f"showing {shown} of 100 rows (cap: 200 rows or 160000 ")
+
+
+@pytest.mark.anyio
+async def test_a_lookup_whose_includes_alone_pass_the_bound_is_a_preview(
+    respx_mock: respx.MockRouter,
+) -> None:
+    """The same users with posts of three-byte text: ``includes`` alone passes the 160,000
+    bytes, so no cut of the users fits, and the page is a note and a preview. A lookup
+    with a problem in ``errors``, a username X does not find, is a preview past the bound
+    too, as the post tools' page is above."""
+    for answer in (users_with_posts("\u4e2d"), {**users_with_posts("x"), "errors": [problem()]}):
+        respx_mock.get("https://api.x.com/2/users/by").mock(
+            return_value=httpx.Response(200, json=answer)
+        )
+        payload = await mcp_call(
+            server, "x_lookup_users", {"usernames": ["XDevelopers"], "most_recent_post": True}
+        )
+        assert set(payload) == {"note", "preview"}
+        note = tasks.MCP_CAPS["lookup_users"].note
+        assert payload["note"].endswith(f"over the cap of 160000; {note}")
 
 
 @pytest.mark.anyio
@@ -581,7 +736,7 @@ async def test_an_argument_the_schema_refuses_is_an_error_answer(
 
 def test_the_router_routes_the_seven_tasks() -> None:
     """``GET`` for the tasks of scalar parameters, ``POST`` for ``lookup_users``' list
-    (ADR-0007)."""
+    (sdk-core ADR-0007)."""
     routes = {route.path: route.methods for route in router.routes if isinstance(route, APIRoute)}
     assert routes == {
         "/x/lookup_users": {"POST"},

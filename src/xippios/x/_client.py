@@ -8,23 +8,31 @@ from xippios.core import (
     AsyncClient,
     BearerAuth,
     ClientConfig,
+    EnvVar,
     InvalidRequestError,
     NotFoundError,
     RateLimit,
     RateLimitError,
     XippiosError,
+    request_description,
 )
+from xippios.core.redaction import register_data_name
 
 from xippios.x._version import __version__
 
 SOURCE = "x"
 BASE_URL = "https://api.x.com/2"
 API_KEY_ENV = "X_API_KEY"  # pragma: allowlist secret (a variable name, not a key)
-# A self-imposed pace (ADR-0010 decision 1): X documents no per-minute limit, only
+ENV_VARS: tuple[EnvVar, ...] = (EnvVar(API_KEY_ENV, secret=True, required=True),)
+"""The variables the package reads, for a host (conventions §7; sdk-core ADR-0026, amendment
+2026-11-18, point c). An ``EnvVar`` names a variable and reads none; a variable the source reads
+beside these joins the list."""
+# A self-imposed pace (sdk-core ADR-0033 decision 1): X documents no per-minute limit, only
 # per-endpoint windows of 15 minutes per app (docs/upstream/pages/rate-limits.md), and a
 # 1/sec limit on two endpoints this package does not wrap (GET /2/tweets/search/all and
-# GET /2/spaces/by/creator_ids). The windows are spent, not rationed (ADR-0010 decision 2):
-# classify turns their 429 into RateLimitError with retry_after (coordination row 304).
+# GET /2/spaces/by/creator_ids). The windows are spent, not rationed (sdk-core ADR-0033
+# decision 2): classify turns their 429 into RateLimitError with retry_after (coordination
+# row 304).
 RATE_LIMIT = RateLimit(per_minute=60, burst=1)
 
 RATE_LIMIT_WINDOW = 900.0
@@ -45,6 +53,11 @@ _NOT_FOUND = frozenset({"resource-not-found"})
 _RATE_LIMITED = frozenset({"rate-limit-exceeded"})
 _USAGE_CAPPED = frozenset({"usage-capped"})
 _SNIPPET = 300
+
+# X's paging cursors are data, not credentials: core's rule takes ``token`` as a whole word,
+# so without these ``meta.request``, a recorded fixture and replay would read them REDACTED.
+register_data_name("next_token")
+register_data_name("pagination_token")
 
 
 def _payload(response: httpx.Response) -> dict[str, object]:
@@ -93,11 +106,6 @@ def _details(payload: dict[str, object]) -> str:
     return joined[:_SNIPPET]
 
 
-def _where(response: httpx.Response) -> str:
-    # Method and path only: the query is never quoted (conventions §5, ADR-0005).
-    return f"{response.request.method} {response.request.url.path}"
-
-
 def _until_reset(response: httpx.Response) -> float:
     """Seconds until ``x-rate-limit-reset``, a Unix timestamp, never negative.
 
@@ -128,9 +136,9 @@ def classify(response: httpx.Response) -> XippiosError | None:
     - A 429, or a ``rate-limit-exceeded`` problem at any 4xx: ``RateLimitError`` with
       ``retry_after`` the seconds until ``x-rate-limit-reset`` (a Unix timestamp; never
       negative), else ``RATE_LIMIT_WINDOW`` (900 s). Retries wait it out up to the
-      policy's ``backoff_max``; beyond that the error reaches the caller (ADR-0010).
+      policy's ``backoff_max``; beyond that the error reaches the caller (sdk-core ADR-0033).
     - A 400, or an ``invalid-request`` problem at any 4xx: ``InvalidRequestError`` with
-      upstream's words, since the caller has to change the request (ADR-0007).
+      upstream's words, since the caller has to change the request (sdk-core ADR-0007).
     - A 404, or a ``resource-not-found`` problem at any 4xx: ``NotFoundError``.
     - Everything else falls through to core's mapping: a 401 or 403 becomes
       ``AuthError`` (the keyless and the wrong-key 401 answer ``Unauthorized``), a 5xx
@@ -143,7 +151,7 @@ def classify(response: httpx.Response) -> XippiosError | None:
     kind = _problem_type(payload)
     details = _details(payload)
     said = f": {details}" if details else ""
-    where = _where(response)
+    where = request_description(response)
     if kind in _USAGE_CAPPED and status < 500:
         return RateLimitError(
             f"X usage cap reached (HTTP {status} from {where}){said}. Requests are blocked "
@@ -188,6 +196,7 @@ __all__ = [
     "API_KEY_ENV",
     "BASE_URL",
     "BILLING_CYCLE",
+    "ENV_VARS",
     "RATE_LIMIT",
     "RATE_LIMIT_WINDOW",
     "SOURCE",
