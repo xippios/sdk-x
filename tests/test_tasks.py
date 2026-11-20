@@ -13,10 +13,11 @@ free text rewritten (D1): ``lookup_users`` replays ``get_users_by_usernames``'
 ``get_usage`` ``get_usage/seven_days``. The two page-2 fixtures were recorded while
 core's rule still took ``next_token`` for a credential, so their recorded query reads it
 ``REDACTED``: a test compares the rest of the query with them and the token with the one
-it passed, until a recording writes them again. Four answers no recording gave are built
-in memory from recorded ones and named as such: a lookup that finds no username, a page
-of 100 posts with 280-character texts, the same page in a script of three bytes a
-character, and 930 count buckets, the last three for the MCP result caps.
+it passed, until a recording writes them again. Answers no recording gave are built in
+memory from recorded ones and named as such: a lookup that finds no username, and for the
+MCP result caps pages of 100 posts with 280-character texts, in Latin and in a script of
+three bytes a character, with and without a problem in ``errors``, lookups of 100 users,
+and 930 and 744 count buckets.
 
 Then the adapters: the MCP server through core's in-process client (its seven tools, its
 caps, a whole page and a cut one, the error answers) and the HTTP router (its routes, an
@@ -602,6 +603,90 @@ async def test_a_month_of_hour_counts_comes_whole(respx_mock: respx.MockRouter) 
     payload = await mcp_call(server, "x_count_posts", {"query": "from:USDA"})
     assert "note" not in payload
     assert len(payload["data"]["data"]) == 744
+
+
+def posts_past_the_bound() -> Any:
+    """``search_posts_recent/usda_ten``'s ten posts ten times over, each text 280 characters
+    of three bytes, 179 KB as core serialises them: past the post tools' 128,000 bytes."""
+    answer = body("search_posts_recent", "usda_ten")
+    answer["data"] = [{**post, "text": "\u4e2d" * 280} for post in answer["data"] * 10]
+    answer["meta"]["result_count"] = len(answer["data"])
+    return answer
+
+
+def problem() -> Any:
+    """The problem X answers for a username it does not find, ``partial_errors``' first."""
+    return body("get_users_by_usernames", "partial_errors")["errors"][0]
+
+
+@pytest.mark.anyio
+async def test_a_page_with_errors_past_its_byte_bound_is_a_preview(
+    respx_mock: respx.MockRouter,
+) -> None:
+    """A page that carries ``errors`` beside ``data`` holds two lists, so core does not cut
+    its rows: past the bound it is a note and a preview, which loses the ``next_token``, as
+    before core 0.4.0. The answer is the page above with one problem, built in memory."""
+    answer = {**posts_past_the_bound(), "errors": [problem()]}
+    respx_mock.get("https://api.x.com/2/tweets/search/recent").mock(
+        return_value=httpx.Response(200, json=answer)
+    )
+    payload = await mcp_call(
+        server, "x_search_recent_posts", {"query": "from:USDA", "max_results": 100}
+    )
+    assert set(payload) == {"note", "preview"}
+    note = tasks.MCP_CAPS["search_recent_posts"].note
+    assert payload["note"].endswith(f"over the cap of 128000; {note}")
+    assert answer["meta"]["next_token"] not in payload["preview"]
+
+
+def users_with_posts(text: str) -> Any:
+    """100 users, ``xdevelopers_post_fields``' user under 100 ids, each with a post of 280
+    characters of ``text`` in ``includes.posts``, built in memory."""
+    recorded = body("get_users_by_usernames", "xdevelopers_post_fields")
+    user, post = recorded["data"][0], recorded["includes"]["posts"][0]
+    return {
+        "data": [{**user, "id": str(1000 + n)} for n in range(100)],
+        "includes": {
+            "posts": [{**post, "id": str(5000 + n), "text": text * 280} for n in range(100)]
+        },
+    }
+
+
+@pytest.mark.anyio
+async def test_a_lookup_cut_keeps_its_includes_whole(respx_mock: respx.MockRouter) -> None:
+    """100 users with their posts in Latin text pass ``lookup_users``' 160,000 bytes: the
+    users that fit come, and ``includes``, another field of the page, stays whole."""
+    answer = users_with_posts("x")
+    respx_mock.get("https://api.x.com/2/users/by").mock(
+        return_value=httpx.Response(200, json=answer)
+    )
+    payload = await mcp_call(
+        server, "x_lookup_users", {"usernames": ["XDevelopers"], "most_recent_post": True}
+    )
+    shown = len(payload["data"]["data"])
+    assert 0 < shown < 100
+    assert len(payload["data"]["includes"]["posts"]) == 100
+    assert payload["note"].startswith(f"showing {shown} of 100 rows (cap: 200 rows or 160000 ")
+
+
+@pytest.mark.anyio
+async def test_a_lookup_whose_includes_alone_pass_the_bound_is_a_preview(
+    respx_mock: respx.MockRouter,
+) -> None:
+    """The same users with posts of three-byte text: ``includes`` alone passes the 160,000
+    bytes, so no cut of the users fits, and the page is a note and a preview. A lookup
+    with a problem in ``errors``, a username X does not find, is a preview past the bound
+    too, as the post tools' page is above."""
+    for answer in (users_with_posts("\u4e2d"), {**users_with_posts("x"), "errors": [problem()]}):
+        respx_mock.get("https://api.x.com/2/users/by").mock(
+            return_value=httpx.Response(200, json=answer)
+        )
+        payload = await mcp_call(
+            server, "x_lookup_users", {"usernames": ["XDevelopers"], "most_recent_post": True}
+        )
+        assert set(payload) == {"note", "preview"}
+        note = tasks.MCP_CAPS["lookup_users"].note
+        assert payload["note"].endswith(f"over the cap of 160000; {note}")
 
 
 @pytest.mark.anyio
