@@ -97,7 +97,8 @@ def body(wrapper: str, case: str) -> Any:
 
 
 def without_token(query: dict[str, str]) -> dict[str, str]:
-    """``query`` without ``next_token``, which a page-2 fixture recorded ``REDACTED``."""
+    """``query`` without ``next_token``, which a page-2 fixture recorded ``REDACTED``; it goes
+    with the recording of https://github.com/xippios/sdk-x/issues/31."""
     return {name: value for name, value in query.items() if name != "next_token"}
 
 
@@ -457,9 +458,10 @@ async def test_the_server_lists_the_seven_tools_in_order() -> None:
 
 
 def test_the_caps_hold_a_whole_page() -> None:
-    """A page is one row to the cap, so ``max_rows`` stays 200; the bytes hold 100 posts or
-    100 users as core serialises them, ``count_posts`` keeps 64 KB, ``get_usage`` has no
-    entry, and every note names the tool's own parameters (row 338 item 3)."""
+    """A page's list is its rows, cut past the byte bound to the row bound, which stays the
+    family's 200; the bytes hold 100 posts or 100 users as core serialises them,
+    ``count_posts`` keeps 64 KB, ``get_usage`` has no entry, and every note names the tool's
+    own parameters (row 338 item 3)."""
     caps = tasks.MCP_CAPS
     assert set(caps) == set(tasks.__all__) - {"get_usage"}
     assert {name: (cap.max_rows, cap.max_bytes) for name, cap in caps.items()} == {

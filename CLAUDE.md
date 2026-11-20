@@ -405,24 +405,27 @@ The rules they share, stated in the module docstring too:
   post carries its own `created_at`, and a newest time the package computes across records
   is no release time (sdk-core ADR-0041, decision 1; conventions §4; row 338
   item 2).
-- **MCP caps.** A result is one page, a model that holds one list, its posts, users or
-  buckets: within its byte bound it returns whole, however many rows it holds, and past it
-  its rows are cut, to the row and the byte bound (`max_rows` stays 200), with the note,
-  its other fields whole, `next_token` among them, which leads past the rows the cut left
-  out, so asking again for fewer shows them (sdk-core ADR-0038, decision 4). `MCP_CAPS`
-  sets the bytes so a page of 100 fits as core serialises it (compact JSON, `None` fields
-  included; sdk-core ADR-0038 decisions 2 and 4; row 338 item 3), measured on the fixtures: a post is about 960 bytes
-  besides its `text` of at most 280 characters, a user about 800 besides its free texts
-  (160, 50 and 30 characters at most), a count bucket 77, the envelope about 600. The
-  post tools take 128,000 bytes (100 x (960 + 280) + 600 = 124,600), `lookup_users`
-  160,000 (100 users with the longest texts 104,600, room for non-ASCII text; with
-  `most_recent_post` about 70 users and their posts fit), `count_posts` keeps 64 KB (744
-  hour buckets take 58,432; minutes pass it beyond about 14 hours, about 840 buckets, and
-  a cut keeps 200) and
-  `get_usage` has no entry. The whole-page arithmetic holds for Latin-script text, about
-  one byte a character; a page of mostly non-Latin text (CJK, Arabic, emoji) takes up to
-  four bytes a character and can still be cut, with the note. Each note names the tool's
-  own parameters.
+- **MCP caps.** A result is one page, a model whose list, its posts, users or buckets, is
+  its rows: within its byte bound it returns whole, however many rows it holds, and past
+  it its rows are cut, to the row and the byte bound (`max_rows` stays 200), with the
+  note, its other fields whole, `includes` among them, and its `next_token` too, which
+  leads past the rows the cut left out, so asking again for fewer shows them (sdk-core
+  ADR-0038, decision 4). Two pages are not cut so and come back as the note and a preview
+  that loses the `next_token`: a page that carries `errors` beside `data`, two lists, a
+  lookup with a username X does not find among them, and a lookup whose `includes` alone
+  pass the bound (https://github.com/xippios/sdk-x/issues/35). `MCP_CAPS` sets the bytes
+  so a page of 100 fits as core serialises it (compact JSON, `None` fields included;
+  sdk-core ADR-0038 decisions 2 and 4; row 338 item 3), measured on the fixtures: a post
+  is about 960 bytes besides its `text` of at most 280 characters, a user about 800
+  besides its free texts (160, 50 and 30 characters at most), a count bucket 77, the
+  envelope about 600. The post tools take 128,000 bytes (100 x (960 + 280) + 600 =
+  124,600), `lookup_users` 160,000 (100 users with the longest texts 104,600, room for
+  non-ASCII text; with `most_recent_post` about 70 users and their posts fit),
+  `count_posts` keeps 64 KB (744 hour buckets take 58,432; minutes pass it beyond about 14
+  hours, about 840 buckets, and a cut keeps 200) and `get_usage` has no entry. The
+  whole-page arithmetic holds for Latin-script text, about one byte a character; a page of
+  mostly non-Latin text (CJK, Arabic, emoji) takes up to four bytes a character and can
+  still be cut, with the note. Each note names the tool's own parameters.
 
 ### Live tests (D3)
 

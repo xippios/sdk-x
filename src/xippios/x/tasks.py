@@ -121,24 +121,28 @@ MCP_CAPS: Mapping[str, ResultCap] = {
 """Per-tool caps that hold a whole page (conventions §8; sdk-core ADR-0038 decisions 2 and 4;
 row 338 item 3).
 
-A task's result is one page, a model that holds one list, its posts, users or buckets, and
-within its byte bound it returns whole, however many rows it holds; ``max_rows`` stays the
-family's 200. Past the byte bound its rows are cut, to the row and the byte bound, with
-the note, and its other fields stay whole, ``next_token`` among them, which leads past the
-rows the cut left out: asking again for fewer, as the note says, shows them. Measured on
-the recorded fixtures as core serialises them (compact JSON, ``None`` fields included): a
-post is about 960 bytes besides its ``text``, at most 280 characters, a user about 800
-besides its free texts (a ``description`` of at most 160 characters, a ``name`` of 50, a
-``location`` of 30), a count's bucket 77 bytes, the envelope about 600. So 100 posts with
-280-character ASCII texts take 100 x (960 + 280) + 600 = 124,600 bytes, under 128,000 for
-the post tools; 100 users with the longest free texts 100 x (800 + 240) + 600 = 104,600,
-under 160,000 for ``lookup_users``, which leaves room for non-ASCII text, and with
-``most_recent_post`` each user brings a post besides, 100 x (1,040 + 1,240) + 600 =
-228,600, so about 70 users with their posts fit. ``count_posts`` keeps the family's 64 KB:
-a page of 31 days of hours, 744 buckets, takes 744 x 78 + 400 = 58,432 bytes, and only
-minutes over more than about 14 hours (about 840 buckets) pass it. ``get_usage``, at most
-90 days, stays under the default and has no entry. Each note names the tool's own
-parameters.
+A task's result is one page, a model whose list, its posts, users or buckets, is its rows,
+and within its byte bound it returns whole, however many rows it holds; ``max_rows`` stays
+the family's 200. Past the byte bound its rows are cut, to the row and the byte bound,
+with the note, and its other fields stay whole, ``includes`` among them, and so does its
+``next_token``, which leads past the rows the cut left out: asking again for fewer, as the
+note says, shows them. Two pages are not cut so and come back as the note and a preview of
+their text, which loses the ``next_token``: a page that carries ``errors`` beside
+``data``, which holds two lists, a lookup with a username X does not find among them, and
+a lookup whose ``includes`` alone pass the bound
+(https://github.com/xippios/sdk-x/issues/35). Measured on the recorded fixtures as core
+serialises them (compact JSON, ``None`` fields included): a post is about 960 bytes
+besides its ``text``, at most 280 characters, a user about 800 besides its free texts (a
+``description`` of at most 160 characters, a ``name`` of 50, a ``location`` of 30), a
+count's bucket 77 bytes, the envelope about 600. So 100 posts with 280-character ASCII
+texts take 100 x (960 + 280) + 600 = 124,600 bytes, under 128,000 for the post tools; 100
+users with the longest free texts 100 x (800 + 240) + 600 = 104,600, under 160,000 for
+``lookup_users``, which leaves room for non-ASCII text, and with ``most_recent_post`` each
+user brings a post besides, 100 x (1,040 + 1,240) + 600 = 228,600, so about 70 users with
+their posts fit. ``count_posts`` keeps the family's 64 KB: a page of 31 days of hours, 744
+buckets, takes 744 x 78 + 400 = 58,432 bytes, and only minutes over more than about 14
+hours (about 840 buckets) pass it. ``get_usage``, at most 90 days, stays under the default
+and has no entry. Each note names the tool's own parameters.
 """
 
 USER_FIELDS = (

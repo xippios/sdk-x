@@ -79,7 +79,8 @@ def recorded(wrapper: str, case: str) -> dict[str, str]:
 
 def without_token(query: dict[str, str]) -> dict[str, str]:
     """``query`` without ``next_token``: the two page-2 fixtures were recorded while core's
-    rule took it for a credential, so their recorded query reads it ``REDACTED``."""
+    rule took it for a credential, so their recorded query reads it ``REDACTED``. It goes
+    with the recording of https://github.com/xippios/sdk-x/issues/31."""
     return {name: value for name, value in query.items() if name != "next_token"}
 
 
