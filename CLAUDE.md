@@ -14,7 +14,7 @@ follows, sdk-core's conventions among them, are listed under
 | API base URL | `https://api.x.com/2` |
 | Documentation | https://docs.x.com/x-api/introduction, snapshotted in `docs/upstream/`; an OpenAPI or Swagger document a page names is kept beside it, its URL in `SPEC_URL` of `scripts/refresh_upstream.py` (`/refresh-upstream`) |
 | Credentials | `X_API_KEY` from the environment, sent as `Authorization: Bearer`: the app's Bearer Token, which X calls the App only Access Token (`docs/upstream/pages/application-only.md`), not the console's "API Key", the OAuth 1.0a consumer key |
-| Rate limit | 60 requests per minute, burst 1; a self-imposed pace (sdk-core ADR-0010 decision 1), enforced client-side in `_client.py`. X documents no per-minute limit but per-endpoint windows of 15 minutes, per app with a Bearer Token (`docs/upstream/pages/rate-limits.md`): 300 on `GET /2/users/by` and on both counts endpoints, 3,500 on `GET /2/tweets`, 10,000 on `GET /2/users/:id/tweets`, 450 on `GET /2/tweets/search/recent`, 900 on `GET /2/lists/:id/tweets` and on `GET /2/lists/:id/members`, 50 on `GET /2/usage/tweets`; a 1/sec limit only on `GET /2/tweets/search/all` and `GET /2/spaces/by/creator_ids`, which this package does not wrap. The windows are never rationed ahead by the limiter; a spent one is answered at its 429, in `_client.py`'s `classify` alone: a `RateLimitError` whose `retry_after` comes from `x-rate-limit-reset`, a Unix timestamp, with the 15-minute window as the fallback. No `QuotaPolicy`: one policy per client cannot track windows per endpoint (core gap row 318). sdk-core ADR-0010 decisions 2 and 3; coordination row 304. Observed on 2026-10-29: `x-rate-limit-limit: 2000` on `GET /2/users/by` against the page's 300, and 3,500, 10,000, 300, 450, 300, 900, 900 and 50 on the other eight wrapped operations as the page lists; the headers are the authority, the page's table the documented floor. `classify`'s whole mapping: Paths, names and errors below |
+| Rate limit | 60 requests per minute, burst 1; a self-imposed pace (sdk-core ADR-0033 decision 1), enforced client-side in `_client.py`. X documents no per-minute limit but per-endpoint windows of 15 minutes, per app with a Bearer Token (`docs/upstream/pages/rate-limits.md`): 300 on `GET /2/users/by` and on both counts endpoints, 3,500 on `GET /2/tweets`, 10,000 on `GET /2/users/:id/tweets`, 450 on `GET /2/tweets/search/recent`, 900 on `GET /2/lists/:id/tweets` and on `GET /2/lists/:id/members`, 50 on `GET /2/usage/tweets`; a 1/sec limit only on `GET /2/tweets/search/all` and `GET /2/spaces/by/creator_ids`, which this package does not wrap. The windows are never rationed ahead by the limiter; a spent one is answered at its 429, in `_client.py`'s `classify` alone: a `RateLimitError` whose `retry_after` comes from `x-rate-limit-reset`, a Unix timestamp, with the 15-minute window as the fallback. No `QuotaPolicy`: one policy per client cannot track windows per endpoint (core gap row 318). sdk-core ADR-0033 decisions 2 and 3; coordination row 304. Observed on 2026-10-29: `x-rate-limit-limit: 2000` on `GET /2/users/by` against the page's 300, and 3,500, 10,000, 300, 450, 300, 900, 900 and 50 on the other eight wrapped operations as the page lists; the headers are the authority, the page's table the documented floor. `classify`'s whole mapping: Paths, names and errors below |
 | Write tools | no, this package is read-only |
 
 The snapshot listed in `docs/upstream/FETCHED.md` is the reference for names, parameters and
@@ -30,8 +30,8 @@ src/xippios/x/
   __init__.py      public surface: __version__ and re-exported task functions
   py.typed         PEP 561 marker; consumers' mypy --strict needs it
   _version.py      __version__ from distribution metadata
-  _client.py       the one configured AsyncClient (base URL, key, rate limit) and classify,
-                   upstream's documented error shapes
+  _client.py       the one configured AsyncClient (base URL, key, rate limit), ENV_VARS, the
+                   cursors declared data, and classify, upstream's documented error shapes
   errors.py        the package's own error classes, where conventions §5 calls for one
   models.py        pydantic models mirroring upstream payloads (UpstreamModel); by the
                    family's precedent also an enumeration written by hand, for a value set
@@ -47,7 +47,7 @@ src/xippios/x/
   tasks.py         the seven task functions (The task layer below); __all__ is what the
                    adapters register, but BULK_TASKS (none), the Python-only ones; MCP_CAPS the
                    per-tool result caps that hold a whole page
-  mcp.py           xippios-x-mcp entry point
+  mcp.py           xippios-x-mcp entry point: build() the tool set, server
   http.py          FastAPI router
   params.py        the packaged reference lists, read from reference/
   enums.py         StrEnums (IntEnums for integer ids) generated from the packaged lists;
@@ -77,6 +77,9 @@ tests/
                    waits, metrics and decision
   test_tasks.py    per-task replay tests through the sync facades, the MCP server through
                    core's in-process client, the HTTP router, the live tests' nightly rule
+  test_contract.py the package contract, build() and ENV_VARS, and what the adapters and
+                   the entry point answer a caller: refusals, error flags, problem details
+  test_refresh_upstream.py  FETCHED.md as the capture script renders it, offline
   test_live.py     @pytest.mark.live smoke tests, one per task (Live tests (D3) below)
 docs/
   upstream/        documentation snapshot and FETCHED.md
@@ -116,7 +119,7 @@ uv run xippios-x-mcp   # stdio; add --http for streamable HTTP
 ```
 
 `uv run pytest` is offline: core's plugin refuses the network and skips the rate limiter's
-waits in every test not marked `live` (conventions §10, sdk-core ADR-0013). A test that
+waits in every test not marked `live` (conventions §10, sdk-core ADR-0035). A test that
 asserts a limiter wait or a quota pause is marked `rate_limited`, one that must reach the
 network `network`.
 It sends the key's placeholder, with `X_API_KEY` set to it because
@@ -142,6 +145,16 @@ and counts, never on a raw payload.
 - Upstream's documented error shapes go into `classify` in `_client.py`, once, and an error
   class of the package's own into `errors.py`; a wrapper never inspects a status code
   (conventions §5, §6).
+- One limiter paces each host the package sends to (conventions §2, §6). A second base URL
+  on the host of the API base URL goes through the one `client` of `_client.py` by its
+  absolute URL, and `classify`'s path checks name both bases. An origin or mirror that the
+  publisher runs itself, where its canonical host refuses automated requests, takes that
+  host's pace through the same client, and `docs/upstream/` names both hosts; a mirror that
+  anyone else runs is never sent to. A host that a dependency sends to is reached through
+  the dependency's tasks alone. Any other host gets a client of its own in `_client.py`,
+  its base URL and its `RateLimit` beside the first's, and a row of its own in the table
+  under What this package wraps, with its pace and where the pace comes from. The package
+  sends to `api.x.com` alone.
 - A change brings its tests, written before the code, and passes the offline checks above;
   its changelog entry is a fragment under `changelog/`, one file holding its bullet, as
   `changelog/README.md` lays it out (conventions §12). Commit subjects follow Conventional
@@ -157,16 +170,17 @@ and counts, never on a raw payload.
 - Never hand-write a fixture, and never commit one without grepping it for key patterns
   (conventions §10).
 - Never read or print `.envrc`, `.env`, the credential variable of this package,
-  `X_API_KEY`, or any variable ending in `_API_KEY`, `_REFRESH_TOKEN` or
+  `X_API_KEY`, or any variable ending in `_API_KEY`, `_TOKEN` or
   `_SECRET`.
 - Never write a key, a token or another credential into a file or a commit.
 - Never put logic in `mcp.py` or `http.py`, and never add a route or a tool by hand: the
   adapters register `tasks.__all__` (sdk-core ADR-0001).
-- Never rename or re-map an upstream concept to another source's (sdk-core ADR-0003).
+- Never rename or re-map an upstream concept to another source's (sdk-core ADR-0028).
 - Never return a documented personal identifier in a task's projection, echo one in
   `meta.request`, or commit one in a fixture (sdk-core ADR-0017).
-- Never edit `docs/upstream/` by hand: `/refresh-upstream` fetches it, and the pull request
-  shows its diff (conventions §3).
+- Never edit `docs/upstream/` by hand but `docs/upstream/OBSERVED.md`, the notes on what
+  upstream does but never documents: `/refresh-upstream` fetches the rest, and the pull
+  request shows its diff (conventions §3).
 - Never add `src/xippios/__init__.py`, nor an `__init__.py` at a level between it and the
   package (sdk-core ADR-0006).
 - Never push a tag by hand: a release's tag comes from `publish.yml` alone (conventions §12).
@@ -178,7 +192,7 @@ template release reaches it in a pull request of its own, with
 `uvx --from 'copier>=9.19' copier update --defaults --vcs-ref=<tag>` (conventions §15): the
 update renders the template's files again and never overwrites the files this package
 fills, `__init__.py`, `_client.py`, `errors.py`, `models.py`, `api/`, `parse/`, `tasks.py`,
-`params.py`, `enums.py`, `reference/`, `scripts/refresh_reference.py`,
+`tasks_write.py`, `params.py`, `enums.py`, `reference/`, `scripts/refresh_reference.py`,
 `scripts/refresh_upstream.py`, `tests/test_tasks.py`, `tests/test_live.py`,
 `tests/fixtures/`, `docs/upstream/`, `docs/adr.md`, `docs/adr.json`, `README.md`,
 `CHANGELOG.md` and `CLAUDE.md`. sdk-template's
@@ -218,7 +232,7 @@ prints its estimate before its first request.
 Decided by Johannes on 2026-10-29: fixtures are recorded only from @XDevelopers, @USDA
 and @FAO; the recorder rewrites `text`, `description`, and the `name`, `username` and
 `location` of every user other than the recorded accounts (@XDevelopers, @USDA, @FAO), by
-key on the `Fixture` before the write (sdk-core ADR-0024 decision 4); counts stay as
+key on the `Fixture` before the write (sdk-core ADR-0042 decision 4); counts stay as
 sent.
 
 The terms behind it are the X Developer Agreement's definitions, in
@@ -248,7 +262,7 @@ more than 1,500,000 Post IDs to any entity within 30 days without X's written pe
 (`docs/upstream/terms/developer-policy.md`, lines 79 to 81).
 
 By I.10 the documentation is X API, and so Licensed Material, too. The snapshot under
-`docs/upstream/` is kept under sdk-core ADR-0003's amendment of 2026-10-24 (Johannes,
+`docs/upstream/` is kept under sdk-core ADR-0028, decision 4 (Johannes,
 2026-10-29): reproduced for reference with its attribution and URLs in `FETCHED.md`;
 should X object, a PR replaces it with a summary that keeps the names and semantics the
 wrappers rely on.
@@ -261,8 +275,8 @@ wrappers rely on.
 `post.fields`, `expansions`), `id=` filling the path of `get_users_posts`,
 `get_lists_posts` and `get_lists_members`. It records
 through the package's client with `RetryPolicy(max_attempts=1)`, so a 5xx spends no second
-request, and writes `tests/fixtures/<wrapper>/<case>.json` once, never over an existing
-file. How it holds to D1 above, in full in its docstring:
+request, and writes `tests/fixtures/<wrapper>/<case>.json` once, with core's
+`write_fixture`, never over an existing file. How it holds to D1 above, in full in its docstring:
 
 - **The accounts.** It records the nine wrappers only. Its guard covers what a request
   names, its usernames, ids and query, and refuses before the request one that names an
@@ -328,16 +342,20 @@ recent post at recording, ten posts, nine replies and the post itself,
 every `text` rewritten, ids, times and public metrics as sent; no user object, since the
 recorder admits no `author_id` expansion.
 
-Every fixture carries X's `x-transaction-id` response header, a request id of 16 hex
-digits. detect-secrets flags it in every fixture but
+Every fixture recorded so far carries X's `x-transaction-id` response header, a request id
+of 16 hex digits. detect-secrets flags it in every fixture but
 `search_posts_recent/unbalanced_parenthesis` and `get_usage/seven_days`, whose ids'
 entropies, exactly 3.0 and 2.98, do not pass the detector's limit; each flagged one has an
 audited `.secrets.baseline` entry (`is_secret:
-false`; row 124). Core's scrub writes `next_token=REDACTED` and `pagination_token=REDACTED`
-in a recorded URL, since its credential rule takes `token` as a whole word, and
-`sent_query` reads them the same way, so a test cannot match on them; the tokens in `meta`
-stay as sent. A task's `meta.request` redacts them too, until core lets a source declare
-them data (core gap row 326).
+false`; row 124). Core's recorder drops the headers that only identify a request, so a
+fixture recorded now carries none and adds no audited entry for it. X's cursors,
+`next_token` and `pagination_token`, are data: `_client.py` declares them with core's
+`register_data_name`, so a recorded URL, `sent_query` and a task's `meta.request` keep
+them as sent, where core's credential rule, which takes `token` as a whole word, wrote
+them `REDACTED`. The two page-2 fixtures, `search_posts_recent/usda_ten_page_2` and
+`get_posts_counts_all/usda_by_day_page_2`, were recorded before, their URL reading
+`next_token=REDACTED`, so a test compares the rest of their query with them and the token
+with the one it sent, until a recording writes them again.
 
 ### The task layer
 
@@ -365,7 +383,7 @@ The rules they share, stated in the module docstring too:
 - **Counts.** One task on the full archive, `GET /2/tweets/counts/all` (the session's
   choice of 2026-10-29: one counts task on the general endpoint, explicit names over
   switches; row 338 item 5); the recent counts stay a wrapper. Every granularity X takes is
-  served, minutes included, and the default is upstream's, `hour` (sdk-core ADR-0003).
+  served, minutes included, and the default is upstream's, `hour` (sdk-core ADR-0028).
   Without `start_time` upstream chooses the range; the recordings all give one.
 - **Queries.** `search_recent_posts` refuses a query over 512 characters before the call
   ("512 query length", `pages/rate-limits.md`), `count_posts` one over 1,024 ("1,024-character
@@ -380,23 +398,27 @@ The rules they share, stated in the module docstring too:
   `errors`; an empty search is an empty page.
 - **`meta`.** `source` the slug `x` (row 338 item 1), `endpoint` the operation id, `retrieved_at` the time
   the answer arrived (no cache), `request` the parameters sent under the names X takes, a
-  token's value `REDACTED` (row 326), `total` `None` (X counts only the page's items,
-  `result_count`; sdk-core ADR-0012), `vintage` `None` (X has no release identifier).
+  paging token as sent, since `_client.py` declares the cursors data, `total` `None` (X
+  counts only the page's items, `result_count`; sdk-core ADR-0034), `vintage` `None` (X
+  has no release identifier).
 - **`published_at`.** `None` for every task: X states no release time for a page, each
   post carries its own `created_at`, and a newest time the package computes across records
-  is no release time (sdk-core ADR-0022, reading of 2026-10-29; conventions §4; row 338
+  is no release time (sdk-core ADR-0041, decision 1; conventions §4; row 338
   item 2).
-- **MCP caps.** A result is one page, a model and not a list, so it is one row to the cap
-  (`max_rows` stays 200) and the byte bound is the one that cuts it, whole, into a note
-  and a preview that loses the `next_token`. `MCP_CAPS` sets the bytes so a page of 100
-  fits as core serialises it (compact JSON, `None` fields included; sdk-core ADR-0016
-  decisions 2 and 4; row 338 item 3), measured on the fixtures: a post is about 960 bytes
+- **MCP caps.** A result is one page, a model that holds one list, its posts, users or
+  buckets: within its byte bound it returns whole, however many rows it holds, and past it
+  its rows are cut, to the row and the byte bound (`max_rows` stays 200), with the note,
+  its other fields whole, `next_token` among them, which leads past the rows the cut left
+  out, so asking again for fewer shows them (sdk-core ADR-0038, decision 4). `MCP_CAPS`
+  sets the bytes so a page of 100 fits as core serialises it (compact JSON, `None` fields
+  included; sdk-core ADR-0038 decisions 2 and 4; row 338 item 3), measured on the fixtures: a post is about 960 bytes
   besides its `text` of at most 280 characters, a user about 800 besides its free texts
   (160, 50 and 30 characters at most), a count bucket 77, the envelope about 600. The
   post tools take 128,000 bytes (100 x (960 + 280) + 600 = 124,600), `lookup_users`
   160,000 (100 users with the longest texts 104,600, room for non-ASCII text; with
   `most_recent_post` about 70 users and their posts fit), `count_posts` keeps 64 KB (744
-  hour buckets take 58,432; minutes pass it beyond about 14 hours, about 840 buckets) and
+  hour buckets take 58,432; minutes pass it beyond about 14 hours, about 840 buckets, and
+  a cut keeps 200) and
   `get_usage` has no entry. The whole-page arithmetic holds for Latin-script text, about
   one byte a character; a page of mostly non-Latin text (CJK, Arabic, emoji) takes up to
   four bytes a character and can still be cut, with the note. Each note names the tool's
@@ -490,7 +512,7 @@ problems, on `api.twitter.com`:
 - a `usage-capped` problem at any 4xx: `RateLimitError`, `retry_after` `BILLING_CYCLE`, 31
   days, the upper bound of a monthly billing cycle, since X blocks requests "until the next
   billing cycle" and its answer does not say when that is (the documented fallback of
-  sdk-core ADR-0010 decision 3); `GET /2/usage/tweets` returns the exact day,
+  sdk-core ADR-0033 decision 3); `GET /2/usage/tweets` returns the exact day,
   `cap_reset_day` (29 when read on 2026-10-29);
 - a 429 or a `rate-limit-exceeded` problem: `RateLimitError`, `retry_after` the seconds
   until `x-rate-limit-reset` (never negative), else `RATE_LIMIT_WINDOW`, 900 s; core's
@@ -504,7 +526,7 @@ A 200 is never an error: X answers a username or a post id it does not find with
 `pages/response-codes-and-errors.md`), and a user id or a List id it does not find with
 HTTP 200, a `resource-not-found` problem and no `data` (`get_users_posts/unknown_id`,
 `get_lists_posts/unknown_id`). The wrappers
-return these as the page, faithful to the answer (sdk-core ADR-0003); a task raises
+return these as the page, faithful to the answer (sdk-core ADR-0028); a task raises
 `NotFoundError` when `data` is absent and every problem is `resource-not-found` (The task
 layer above). A query X cannot parse is a 400 with its parser's words
 (`search_posts_recent/unbalanced_parenthesis`). Recent search, unlike `getUsersPosts`,
