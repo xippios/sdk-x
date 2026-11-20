@@ -1,13 +1,15 @@
 """The package contract and what the adapters of xippios-core 0.4.0 answer a caller.
 
-Offline, in process: the MCP server through an in-process ``mcp.client.Client``, the router
-through FastAPI's ``TestClient`` and the entry point in a child process. ``mcp.build()``
-is the tool set a host serves (conventions §8; sdk-core ADR-0026, amendment 2026-11-18,
-points c and d), and ``_client.ENV_VARS`` the variables the package reads, for that host.
-Every refusal below comes before the task runs, so nothing is sent; the one answer with
-data replays ``tests/fixtures/get_users_posts/usda_ten.json``.
+Offline, in process: the package's modules, the MCP server through an in-process
+``mcp.client.Client``, the router through FastAPI's ``TestClient`` and the entry point in
+a child process. ``mcp.build()`` is the tool set a host serves (conventions §8; sdk-core
+ADR-0026, amendment 2026-11-18, points c and d), and ``_client.ENV_VARS`` the variables
+the package reads, for that host. Every refusal below comes before the task runs, so
+nothing is sent; the one answer with data replays
+``tests/fixtures/get_users_posts/usda_ten.json``.
 """
 
+import importlib.util
 import os
 import subprocess
 import sys
@@ -24,6 +26,7 @@ from xippios.core import EnvVar
 from xippios.core.mcp import ToolSet, build_server
 from xippios.core.testing import ReplayFixture
 
+import xippios.x
 from xippios.x import mcp, tasks
 from xippios.x._client import API_KEY_ENV, ENV_VARS
 from xippios.x.http import router
@@ -39,6 +42,15 @@ async def call(name: str, arguments: dict[str, Any]) -> tuple[bool, str]:
     content = result.content[0]
     assert isinstance(content, TextContent), content
     return result.is_error, content.text
+
+
+def test_the_package_ships_no_reference_scaffold() -> None:
+    """The package packages no list (``has_reference_data`` is false), so it has no
+    ``params`` or ``enums`` module and no ``reference/`` directory."""
+    for module in ("params", "enums"):
+        assert importlib.util.find_spec(f"xippios.x.{module}") is None, module
+    (package,) = xippios.x.__path__
+    assert not (Path(package) / "reference").exists()
 
 
 def test_env_vars_name_the_bearer_token_secret_and_required() -> None:
