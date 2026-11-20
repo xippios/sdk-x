@@ -324,7 +324,7 @@ def test_the_probe_replays_the_three_accounts_into_its_reports(
         eu_core=counted([row for row in rows if row["region"] == "EU"]).core,
     )
     line = probe.decision_line(decision)
-    assert line.startswith("Decision (D5): no-go. Measured accounts: ")
+    assert line.startswith("Decision: no-go. Measured accounts: ")
     assert line in report.splitlines()
 
     printed = capsys.readouterr().out
@@ -927,7 +927,7 @@ def test_go_at_the_thresholds(probe: ModuleType) -> None:
     assert decision.verdict == "go"
     assert decision.everyone == probe.Tally(measured=50, active=25, core=25, categories=4)
     assert probe.decision_line(decision) == (
-        "Decision (D5): go. Measured accounts: 25 of 50 active (50%), go needs 50%; 25 core, "
+        "Decision: go. Measured accounts: 25 of 50 active (50%), go needs 50%; 25 core, "
         "go needs 25; in 4 categories, go needs 4. Region US: 18 of 43 active (42%), 18 core "
         "in 3 categories. Region EU: 7 core, US-only needs fewer than 5."
     )
@@ -1068,3 +1068,16 @@ async def test_a_usage_cap_or_a_fourth_429_stops_the_run(
     with pytest.raises(RateLimitError, match="rate limit"):
         await probe.with_waits(spent)
     assert waits == [900.0, 900.0, 900.0], "each wait at most the 15-minute window"
+
+
+def test_the_help_says_what_the_probe_decides(
+    probe: ModuleType, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """``--help`` describes the probe by what it decides, with no label it leaves unexplained;
+    the environment pins the help's width and leaves its colours off."""
+    monkeypatch.setenv("PYTHON_COLORS", "0")
+    monkeypatch.setenv("COLUMNS", "200")
+    with pytest.raises(SystemExit):
+        probe.parse_args(["--help"])
+    printed = " ".join(capsys.readouterr().out.split())
+    assert "Probe curated X accounts for activity and report go, US-only or no-go." in printed

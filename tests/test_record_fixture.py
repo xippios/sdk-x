@@ -658,3 +658,16 @@ def test_main_records_the_usage_without_a_price(
     out = capsys.readouterr().out
     assert "estimate: no price" in out
     assert "0 values rewritten" in out
+
+
+def test_the_help_says_what_the_recorder_does(
+    recorder: ModuleType, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """``--help`` describes the recorder by what it does, with no label it leaves
+    unexplained; the environment pins the help's width and leaves its colours off."""
+    monkeypatch.setenv("PYTHON_COLORS", "0")
+    monkeypatch.setenv("COLUMNS", "200")
+    with pytest.raises(SystemExit):
+        recorder.parse_args(["--help"])
+    printed = " ".join(capsys.readouterr().out.split())
+    assert "Record one X API v2 request as a test fixture, X Content rewritten." in printed

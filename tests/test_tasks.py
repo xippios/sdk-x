@@ -809,9 +809,9 @@ def test_the_nightly_run_skips_all_but_the_lookup(
     live: ModuleType, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The scheduled run spends one billable call, ``test_lookup_users``'; the six others
-    skip there, naming D3, and run on ``workflow_dispatch`` and locally."""
+    skip there, giving that reason alone, and run on ``workflow_dispatch`` and locally."""
     monkeypatch.setenv("GITHUB_EVENT_NAME", "schedule")
-    with pytest.raises(pytest.skip.Exception, match="D3"):
+    with pytest.raises(pytest.skip.Exception, match=r"^the nightly run [^()]*locally$"):
         live.not_in_the_nightly_run()
     for event in ("workflow_dispatch", "push"):
         monkeypatch.setenv("GITHUB_EVENT_NAME", event)
