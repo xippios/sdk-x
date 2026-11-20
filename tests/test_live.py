@@ -34,11 +34,11 @@ than seven days, the search answers an empty page, which the test accepts."""
 
 
 def not_in_the_nightly_run() -> None:
-    """Skip in the scheduled run, which spends one billable call (D3); run otherwise."""
+    """Skip in the scheduled run, which spends one billable call; run otherwise."""
     if os.environ.get("GITHUB_EVENT_NAME") == "schedule":
         pytest.skip(
-            "D3: the nightly run spends one billable call, test_lookup_users'; this test "
-            "runs on workflow_dispatch and locally (gap, row 337)"
+            "the nightly run spends one billable call, test_lookup_users'; this test runs "
+            "on workflow_dispatch and locally"
         )
 
 

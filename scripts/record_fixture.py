@@ -316,7 +316,7 @@ def parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     """The command line: wrapper, case, query parameters and the two options."""
     parser = argparse.ArgumentParser(
         prog="record_fixture.py",
-        description="Record one X API v2 request as a test fixture, X Content rewritten (D1).",
+        description="Record one X API v2 request as a test fixture, X Content rewritten.",
     )
     parser.add_argument("wrapper", help=f"one of {', '.join(WRAPPERS)}")
     parser.add_argument("case", help="fixture name, e.g. three_accounts")

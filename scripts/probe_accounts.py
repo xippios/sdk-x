@@ -851,7 +851,7 @@ def decision_line(decision: Decision) -> str:
     """The decision and every number it rests on, in one line."""
     everyone, us = decision.everyone, decision.us
     return (
-        f"Decision (D5): {decision.verdict}. Measured accounts: {_share(everyone)}, go needs "
+        f"Decision: {decision.verdict}. Measured accounts: {_share(everyone)}, go needs "
         f"{GO_ACTIVE_SHARE:.0%}; {everyone.core} core, go needs {GO_CORE}; in "
         f"{everyone.categories} categories, go needs {GO_CATEGORIES}. Region {US}: "
         f"{_share(us)}, {us.core} core in {us.categories} categories. Region {EU}: "
@@ -1271,7 +1271,7 @@ def parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     """The command line; ``--spend`` without ``--spend-cap`` is refused."""
     parser = argparse.ArgumentParser(
         prog="probe_accounts.py",
-        description="Probe a curated list of X accounts for activity (the gate P report).",
+        description="Probe curated X accounts for activity and report go, US-only or no-go.",
     )
     parser.add_argument(
         "--accounts",
