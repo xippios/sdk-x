@@ -15,7 +15,7 @@ from typing import Any
 import httpx
 import pytest
 import respx
-from xippios.core.testing import Fixture, fixture_path, load_fixture
+from xippios.core.testing import Fixture, fixture_path, fixture_text, load_fixture
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "record_fixture.py"
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -26,7 +26,7 @@ MADE_UP_KEY = "made-up-key-for-the-recorder-test"  # pragma: allowlist secret
 
 @pytest.fixture(autouse=True)
 def placeholder_api_key(monkeypatch: pytest.MonkeyPatch) -> str:
-    """Keys resolve as the recorder resolves them: core's pin is lifted here (ADR-0013).
+    """Keys resolve as the recorder resolves them: core's pin is lifted here (sdk-core ADR-0035).
 
     ``--wrong-key`` must send its own key and the scrub must see the key in the
     environment, so ``EnvKeyAuth`` is not pinned; ``X_API_KEY`` holds a made-up key in
@@ -490,17 +490,27 @@ def test_main_records_rewrites_and_writes_once(
     with respx.mock(assert_all_called=True) as router:
         route = router.get("https://api.x.com/2/users/by").mock(
             return_value=httpx.Response(
-                200, json=sent, headers={"x-rate-limit-remaining": "9", "x-echo": MADE_UP_KEY}
+                200,
+                json=sent,
+                headers={
+                    "x-rate-limit-remaining": "9",
+                    "x-echo": MADE_UP_KEY,
+                    "x-transaction-id": "0123456789abcdef",
+                },
             )
         )
         assert recorder.main(argv) == 0
         assert recorder.main(argv) == 1, "a fixture is recorded once"
     assert route.call_count == 1
     assert route.calls.last.request.headers["Authorization"] == f"Bearer {placeholder_api_key}"
-    written = (scratch / "get_users_by_usernames" / "made_up.json").read_text(encoding="utf-8")
+    path = scratch / "get_users_by_usernames" / "made_up.json"
+    written = path.read_text(encoding="utf-8")
+    assert written == fixture_text(load_fixture(path)), "laid out as core's writer lays it out"
     assert "Made-up" not in written
     assert placeholder_api_key not in written
-    assert ["x-echo", "REDACTED"] in json.loads(written)["response"]["headers"]
+    headers = json.loads(written)["response"]["headers"]
+    assert ["x-echo", "REDACTED"] in headers
+    assert "x-transaction-id" not in {name for name, _ in headers}, "a request id is dropped"
     body = json.loads(json.loads(written)["response"]["body"])
     assert body["data"][0]["description"] == "[description rewritten]"
     assert body["includes"]["tweets"][0]["text"] == "[text rewritten]"
