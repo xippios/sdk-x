@@ -11,12 +11,13 @@ an enum. Then ``enums.py`` is regenerated from the packaged files by one
 and an ``IntEnum`` per list of integer ids and names in ``ID_LISTS`` (``id_name_pairs``),
 so that a member compares equal to the id in upstream's data, each class naming the day
 its list was fetched; and formatted with ``ruff format`` and ``ruff check --fix``, as it
-is committed (ADR-0008). Where a member name derives to nothing, or two collide, name it
-by hand in ``render``'s call: ``render_enums(member_names=...)``, per list and value (an
-id for an ``IntEnum``).
+is committed (sdk-core ADR-0031). Where a member name derives to nothing, or two collide,
+name it by hand in ``render``'s call: ``render_enums(member_names=...)``, per list and
+value (an id for an ``IntEnum``); a class takes core's default name, from its list or its
+id field, unless ``render_enums(class_names=...)`` names it.
 
-Only lists that are the same for every caller are packaged; a multi-tenant source
-packages no tenant data (ADR-0014). Run from the repository root, with whatever the list
+Only lists that are the same for every caller are packaged; a multi-tenant source packages
+no tenant data (sdk-core ADR-0036). Run from the repository root, with whatever the list
 endpoints need in the environment (a key only where they take one)::
 
     uv run python scripts/refresh_reference.py
@@ -95,7 +96,6 @@ def render() -> None:
     """Regenerate ``enums.py`` from the packaged files and format it as it is committed."""
     lists: dict[str, Sequence[str] | Sequence[tuple[int, str]]] = {}
     fetched: dict[str, str] = {}
-    class_names: dict[str, str] = {}
     keys = [*LISTS, *(id_field for _, _, id_field, _ in ID_LISTS.values())]
     if len(set(keys)) < len(keys):
         raise SystemExit("an id field of ID_LISTS names a list of LISTS: one enum each")
@@ -107,8 +107,7 @@ def render() -> None:
         ids = read(name)
         lists[id_field] = id_name_pairs(ids.records, id_field=id_field, name_field=name_field)
         fetched[id_field] = f"{ids.fetched:%Y-%m-%d}"
-        class_names[id_field] = id_field[:1].upper() + id_field[1:]
-    module = render_enums(lists, fetched=fetched, class_names=class_names, generator=GENERATOR)
+    module = render_enums(lists, fetched=fetched, generator=GENERATOR)
     ENUMS.write_text(module, encoding="utf-8")
     sys.stdout.flush()
     for command in (["format"], ["check", "--fix"]):
