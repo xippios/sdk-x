@@ -21,9 +21,7 @@ lists what they check in an endpoint.
    Dates become `datetime.date`/`datetime`, numbers become `int`/`Decimal`/`float`,
    upstream enumerations become `StrEnum`, an enumeration of integer ids `IntEnum`
    (conventions §3). No renaming to match another source. An enumeration written by
-   hand, for a value set upstream documents and no packaged list renders, lives here
-   too, by the family's precedent: `enums.py` is generated whole
-   (`/refresh-reference-data`).
+   hand, for a value set upstream documents, lives here too, by the family's precedent.
 
 3. **Endpoint wrapper** in `src/xippios/x/api/<wrapper>.py`, or in the
    service's module where operation ids repeat across services and the Layout in

@@ -49,12 +49,7 @@ src/xippios/x/
                    per-tool result caps that hold a whole page
   mcp.py           xippios-x-mcp entry point: build() the tool set, server
   http.py          FastAPI router
-  params.py        the packaged reference lists, read from reference/
-  enums.py         StrEnums (IntEnums for integer ids) generated from the packaged lists;
-                   never edited by hand
-  reference/       packaged code lists (CSV/JSON) plus README with provenance
 scripts/
-  refresh_reference.py   fetches the packaged lists through api/ and regenerates enums.py
   refresh_upstream.py    captures docs/upstream/ and writes FETCHED.md (/refresh-upstream): the
                          OpenAPI document, the docs.x.com pages in their Markdown form and
                          the X Developer Agreement and Policy
@@ -96,7 +91,7 @@ CHANGELOG.md       the releases, each section assembled from the fragments
                    tests), organization.yml (the organization's checks from xippios/.github:
                    conventions, a review of a pull request against the documents the README
                    lists, and adr-index, which runs scripts/adr_index.py --check)
-.claude/commands/  add-endpoint, record-fixture, refresh-upstream, refresh-reference-data, release-prep
+.claude/commands/  add-endpoint, record-fixture, refresh-upstream, release-prep
 ```
 
 The import path is `xippios.x` (sdk-core ADR-0006); `src/xippios/` is a
@@ -192,8 +187,7 @@ template release reaches it in a pull request of its own, with
 `uvx --from 'copier>=9.19' copier update --defaults --vcs-ref=<tag>` (conventions §15): the
 update renders the template's files again and never overwrites the files this package
 fills, `__init__.py`, `_client.py`, `errors.py`, `models.py`, `api/`, `parse/`, `tasks.py`,
-`tasks_write.py`, `params.py`, `enums.py`, `reference/`, `scripts/refresh_reference.py`,
-`scripts/refresh_upstream.py`, `tests/test_tasks.py`, `tests/test_live.py`,
+`tasks_write.py`, `scripts/refresh_upstream.py`, `tests/test_tasks.py`, `tests/test_live.py`,
 `tests/fixtures/`, `docs/upstream/`, `docs/adr.md`, `docs/adr.json`, `README.md`,
 `CHANGELOG.md` and `CLAUDE.md`. sdk-template's
 [CHANGELOG](https://github.com/xippios/sdk-template/blob/main/CHANGELOG.md) says, per

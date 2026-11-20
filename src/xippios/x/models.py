@@ -9,7 +9,7 @@ document gives is a field here, optional unless the document requires it (``id``
 ``User`` and a ``Post`` is required too: it is the object's identifier, sent in every
 recorded answer).
 Times parse to ``datetime``; the document's enumerations are ``StrEnum`` (sdk-core ADR-0031),
-written by hand below since ``enums.py`` holds only what the refresh script generates. An
+written by hand below, since the package packages no list to generate them from. An
 object the document gives no properties for (``article``, ``non_public_metrics``), or
 that no wrapper here requests yet (``entities``, ``context_annotations``, the ``media``,
 ``places``, ``polls``, ``topics`` and ``calls`` of ``includes``), is kept as sent, JSON

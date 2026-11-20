@@ -8,7 +8,7 @@ core_git_ref: ''
 core_version: 0.4.0
 gateway: none
 has_files: false
-has_reference_data: true
+has_reference_data: false
 human: jdidaskalu
 import_path: x
 live_secrets: '[]'
