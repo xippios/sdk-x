@@ -2,15 +2,15 @@
 
 ``/add-endpoint`` adds them.
 
-Each keyed test spends X credits, at the prices of ``docs/upstream/pages/pricing.md``
-(snapshot of 2026-10-29). The nightly run (``GITHUB_EVENT_NAME`` ``schedule``) spends one
-billable call, ``test_lookup_users``' lookup of @XDevelopers, about 0.010 USD (D3); the
-other six skip there (``not_in_the_nightly_run``) and run on ``workflow_dispatch`` and
-locally, together at most about 0.14 USD: five posts of @XDevelopers' (0.025), a recent
-search of ten posts at most (0.050), one full-archive count (0.010), one post of a List
-(0.005), a conversation's page of ten posts at most (0.050) and the usage (no price).
-They assert shapes and counts, never a payload, which ``--tb=short`` keeps out of a public
-log only in part.
+Each keyed test spends X credits, at the prices of ``docs/upstream/pages/pricing.md`` (snapshot
+of 2026-10-29). The nightly run (``GITHUB_EVENT_NAME`` ``schedule``) spends one billable call,
+``test_lookup_users``' lookup of @XDevelopers, about 0.010 USD
+(https://github.com/xippios/sdk-x/pull/1); the other six skip there (``not_in_the_nightly_run``)
+and run on ``workflow_dispatch`` and locally (https://github.com/xippios/sdk-x/pull/8), together
+at most about 0.14 USD: five posts of @XDevelopers' (0.025), a recent search of ten posts at
+most (0.050), one full-archive count (0.010), one post of a List (0.005), a conversation's page
+of ten posts at most (0.050) and the usage (no price). They assert shapes and counts, never a
+payload, which ``--tb=short`` keeps out of a public log only in part.
 """
 
 import os
@@ -34,11 +34,11 @@ than seven days, the search answers an empty page, which the test accepts."""
 
 
 def not_in_the_nightly_run() -> None:
-    """Skip in the scheduled run, which spends one billable call (D3); run otherwise."""
+    """Skip in the scheduled run, which spends one billable call; run otherwise."""
     if os.environ.get("GITHUB_EVENT_NAME") == "schedule":
         pytest.skip(
-            "D3: the nightly run spends one billable call, test_lookup_users'; this test "
-            "runs on workflow_dispatch and locally (gap, row 337)"
+            "the nightly run spends one billable call, test_lookup_users'; this test runs "
+            "on workflow_dispatch and locally"
         )
 
 

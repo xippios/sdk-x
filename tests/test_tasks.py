@@ -3,7 +3,7 @@
 Each task is called through its sync facade and sends exactly the recorded query of the
 fixture it replays, which ``sent_query`` compares; the fixtures are the wrappers', recorded
 on 2026-10-29 from @XDevelopers, @USDA and @FAO and from a List @XDevelopers owns, their
-free text rewritten (D1): ``lookup_users`` replays ``get_users_by_usernames``'
+free text rewritten: ``lookup_users`` replays ``get_users_by_usernames``'
 ``partial_errors`` and, with ``most_recent_post``, ``xdevelopers_post_fields``;
 ``get_user_posts`` ``get_users_posts/usda_ten`` and ``unknown_id``;
 ``search_recent_posts`` ``search_posts_recent/usda_ten``, ``usda_ten_page_2`` and
@@ -21,7 +21,7 @@ and 930 and 744 count buckets.
 
 Then the adapters: the MCP server through core's in-process client (its seven tools, its
 caps, a whole page and a cut one, the error answers) and the HTTP router (its routes, an
-answer, a refusal as a problem); then the live tests' nightly rule (D3).
+answer, a refusal as a problem); then the live tests' nightly rule.
 """
 
 import importlib.util
@@ -104,7 +104,7 @@ def without_token(query: dict[str, str]) -> dict[str, str]:
 
 def assert_meta(meta: ResultMeta, endpoint: str, before: datetime, after: datetime) -> None:
     """What every task's meta holds: the slug, the operation, now; no release time, no
-    vintage, no total (row 338 item 2: X states no release time for a page)."""
+    vintage, no total (X states no release time for a page)."""
     assert meta.source == "x"
     assert meta.endpoint == endpoint
     assert_time_between(meta.retrieved_at, before, after)
@@ -148,7 +148,7 @@ def test_lookup_users_returns_the_found_and_the_problems(replay_fixture: ReplayF
 
 
 def test_lookup_users_with_the_most_recent_post(replay_fixture: ReplayFixture) -> None:
-    """``most_recent_post`` asks for the expansion and the plan's post fields, which X
+    """``most_recent_post`` asks for the expansion and ``POST_FIELDS``, which X
     answers in the document's names."""
     route = replay_fixture("get_users_by_usernames", "xdevelopers_post_fields")
     result, before, after = call(lambda: tasks.lookup_users(["XDevelopers"], most_recent_post=True))
@@ -461,7 +461,7 @@ def test_the_caps_hold_a_whole_page() -> None:
     """A page's list is its rows, cut past the byte bound to the row bound, which stays the
     family's 200; the bytes hold 100 posts or 100 users as core serialises them,
     ``count_posts`` keeps 64 KB, ``get_usage`` has no entry, and every note names the tool's
-    own parameters (row 338 item 3)."""
+    own parameters (https://github.com/xippios/sdk-x/pull/8)."""
     caps = tasks.MCP_CAPS
     assert set(caps) == set(tasks.__all__) - {"get_usage"}
     assert {name: (cap.max_rows, cap.max_bytes) for name, cap in caps.items()} == {
@@ -790,7 +790,7 @@ def test_the_routes_answer_errors_as_problems(
     assert refused.status_code == 422
 
 
-# The live tests' nightly rule (D3)
+# The live tests' nightly rule
 
 
 @pytest.fixture(scope="module")
@@ -809,9 +809,9 @@ def test_the_nightly_run_skips_all_but_the_lookup(
     live: ModuleType, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The scheduled run spends one billable call, ``test_lookup_users``'; the six others
-    skip there, naming D3, and run on ``workflow_dispatch`` and locally."""
+    skip there, giving that reason alone, and run on ``workflow_dispatch`` and locally."""
     monkeypatch.setenv("GITHUB_EVENT_NAME", "schedule")
-    with pytest.raises(pytest.skip.Exception, match="D3"):
+    with pytest.raises(pytest.skip.Exception, match=r"^the nightly run [^()]*locally$"):
         live.not_in_the_nightly_run()
     for event in ("workflow_dispatch", "push"):
         monkeypatch.setenv("GITHUB_EVENT_NAME", event)

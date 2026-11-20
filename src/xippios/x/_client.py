@@ -31,8 +31,8 @@ beside these joins the list."""
 # per-endpoint windows of 15 minutes per app (docs/upstream/pages/rate-limits.md), and a
 # 1/sec limit on two endpoints this package does not wrap (GET /2/tweets/search/all and
 # GET /2/spaces/by/creator_ids). The windows are spent, not rationed (sdk-core ADR-0033
-# decision 2): classify turns their 429 into RateLimitError with retry_after (coordination
-# row 304).
+# decision 2): classify turns their 429 into RateLimitError with retry_after
+# (https://github.com/xippios/sdk-x/pull/3).
 RATE_LIMIT = RateLimit(per_minute=60, burst=1)
 
 RATE_LIMIT_WINDOW = 900.0
@@ -185,8 +185,8 @@ config = ClientConfig(
     classify=classify,
 )
 
-# No QuotaPolicy (Johannes, 2026-10-29): one policy per client cannot track X's
-# per-endpoint windows, so a 429 is answered by classify alone.
+# No QuotaPolicy: one policy per client cannot track X's per-endpoint windows, so a 429 is
+# answered by classify alone (https://github.com/xippios/sdk-x/pull/3).
 
 # The key is read from the environment on the first request, never at import.
 auth = BearerAuth(API_KEY_ENV, source=SOURCE)

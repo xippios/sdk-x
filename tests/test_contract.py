@@ -2,8 +2,8 @@
 
 Offline, in process: the package's modules, the MCP server through an in-process
 ``mcp.client.Client``, the router through FastAPI's ``TestClient`` and the entry point in
-a child process. ``mcp.build()`` is the tool set a host serves (conventions §8; sdk-core
-ADR-0026, amendment 2026-11-18, points c and d), and ``_client.ENV_VARS`` the variables
+a child process. ``mcp.build()`` is the tool set a host serves (conventions §8;
+sdk-core ADR-0026, amendment 2026-11-18, points c and d), and ``_client.ENV_VARS`` the variables
 the package reads, for that host. Every refusal below comes before the task runs, so
 nothing is sent; the one answer with data replays
 ``tests/fixtures/get_users_posts/usda_ten.json``.

@@ -1,4 +1,4 @@
-"""The recorder: D1's rewrite and its verify, the accounts it refuses, its estimate.
+"""The recorder: its rewrite and its verify, the accounts it refuses, its estimate.
 
 The rewrite is tested on recorded fixtures changed in memory: their placeholders are put
 back to made-up text, standing for the text X sent, which the recorder never wrote, and
@@ -371,7 +371,7 @@ def test_requests_for_the_three_accounts_pass(
 def test_every_recorded_request_passes_the_guard(recorder: ModuleType) -> None:
     """The query of each recorded fixture, read back, is one the recorder admits today;
     ``most_recent_post_id`` is the one expansion any of them sends (``most_recent_three``
-    re-recorded without ``referenced_posts``, Johannes, 2026-10-29)."""
+    re-recorded without ``referenced_posts``, https://github.com/xippios/sdk-x/pull/4)."""
     assert recorder.ADMITTED["expansions"] == {"most_recent_post_id"}
     expansions: set[str] = set()
     for path in sorted(FIXTURES.glob("*/*.json")):
@@ -658,3 +658,16 @@ def test_main_records_the_usage_without_a_price(
     out = capsys.readouterr().out
     assert "estimate: no price" in out
     assert "0 values rewritten" in out
+
+
+def test_the_help_says_what_the_recorder_does(
+    recorder: ModuleType, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """``--help`` describes the recorder by what it does, with no label it leaves
+    unexplained; the environment pins the help's width and leaves its colours off."""
+    monkeypatch.setenv("PYTHON_COLORS", "0")
+    monkeypatch.setenv("COLUMNS", "200")
+    with pytest.raises(SystemExit):
+        recorder.parse_args(["--help"])
+    printed = " ".join(capsys.readouterr().out.split())
+    assert "Record one X API v2 request as a test fixture, X Content rewritten." in printed

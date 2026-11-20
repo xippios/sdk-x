@@ -1,12 +1,12 @@
 """Task functions, the public API: the adapters serve ``__all__`` (conventions §2).
 
 Seven read tasks, each a thin call of one endpoint wrapper (``api``) that returns one
-upstream page as X sends it, the wrapper's response model in ``Result.data``: nothing is
-ranked, stored, projected or collected across pages (Johannes, 2026-10-29). Paging is the
-caller's, through the token parameter the operation names (``pagination_token`` or
-``next_token``) and the ``next_token`` of the previous page's ``meta``
-(``result.data.meta.next_token``). The tasks' nouns are the OpenAPI document's: posts,
-users, Lists (gate P, 2026-10-29).
+upstream page as X sends it, the wrapper's response model in ``Result.data``: nothing
+is ranked, stored, projected or collected across pages, and the nouns are the OpenAPI
+document's, posts, users and Lists (https://github.com/xippios/sdk-x/pull/8). Paging
+is the caller's, through the token parameter the operation names (``pagination_token``
+or ``next_token``) and the ``next_token`` of the previous page's ``meta``
+(``result.data.meta.next_token``).
 
 Spend per call, at the prices of ``docs/upstream/pages/pricing.md`` (snapshot of
 2026-10-29), a post or user read again the same UTC day not billed again (a soft
@@ -18,9 +18,9 @@ since the page does not say under which resource they are billed; ``count_posts`
 USD a request, every request, since counts are not deduplicated; ``get_usage`` no price,
 the page states none.
 
-The fields each task asks for are fixed, the plan's sets of the probe (the plan §8,
-``USER_FIELDS`` and ``POST_FIELDS``), which the fixtures were recorded with; a task takes
-no expansion but ``lookup_users``' ``most_recent_post``.
+The fields each task asks for are fixed, the account probe's sets (``USER_FIELDS`` and
+``POST_FIELDS``), which the fixtures were recorded with; a task takes no expansion but
+``lookup_users``' ``most_recent_post`` (https://github.com/xippios/sdk-x/pull/8).
 
 Release metadata, the same for every task: ``meta.source`` is the source slug ``"x"``,
 ``meta.endpoint`` the operation's id (``getUsersPosts``), ``meta.retrieved_at`` the time
@@ -31,7 +31,7 @@ of the records matching a request, only ``result_count``, the items of this page
 (sdk-core ADR-0034). ``meta.published_at`` is ``None`` for every task: X states no
 release time for a page, each post carries its own ``created_at``, and a newest time the
 package computes across records is no release time (sdk-core ADR-0041, decision 1;
-conventions §4; row 338 item 2). ``meta.vintage`` is
+conventions §4; https://github.com/xippios/sdk-x/pull/8). ``meta.vintage`` is
 ``None``, X having no release identifier.
 
 A 200 that carries ``errors`` is returned as the page (partial errors), except that a page
@@ -66,7 +66,7 @@ from xippios.x.models import (
 )
 
 # In the order an agent meets them, which the adapters keep for the tools and routes: users
-# first, whose ids the posts tasks take, the usage last (Johannes, 2026-10-29).
+# first, whose ids the posts tasks take, the usage last (https://github.com/xippios/sdk-x/pull/8).
 __all__ = [  # noqa: RUF022
     "lookup_users",
     "get_user_posts",
@@ -119,7 +119,7 @@ MCP_CAPS: Mapping[str, ResultCap] = {
     ),
 }
 """Per-tool caps that hold a whole page (conventions §8; sdk-core ADR-0038 decisions 2 and 4;
-row 338 item 3).
+https://github.com/xippios/sdk-x/pull/8).
 
 A task's result is one page, a model whose list, its posts, users or buckets, is its rows,
 and within its byte bound it returns whole, however many rows it holds; ``max_rows`` stays
@@ -155,7 +155,7 @@ USER_FIELDS = (
     UserField.URL,
 )
 """The ``user.fields`` ``lookup_users`` asks for beyond ``id``, ``name`` and ``username``:
-the plan's set (the plan §8)."""
+the account probe's set (https://github.com/xippios/sdk-x/pull/8)."""
 
 POST_FIELDS = (
     PostField.CREATED_AT,
@@ -163,8 +163,8 @@ POST_FIELDS = (
     PostField.PUBLIC_METRICS,
     PostField.CONVERSATION_ID,
 )
-"""The ``post.fields`` every task that returns posts asks for beyond ``id`` and ``text``:
-the plan's set (the plan §8); with them X answers in the document's names."""
+"""The ``post.fields`` every task that returns posts asks for beyond ``id`` and ``text``,
+with which X answers in the document's names (https://github.com/xippios/sdk-x/pull/8)."""
 
 USAGE_FIELDS = tuple(UsageField)
 """Every ``usage.fields`` value: ``get_usage`` returns the whole ``Usage``."""
