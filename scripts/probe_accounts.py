@@ -50,7 +50,7 @@ prints beside the run's: a same-day re-run reads the cache and spends nothing it
 Rate limits. ``GET /2/tweets/counts/all`` allows 300 requests per 15 minutes
 (``pages/rate-limits.md``) and a run makes 6N. The client paces at 60 a minute; X's 429
 reaches the probe as ``RateLimitError`` with ``retry_after`` (``classify``), and the probe
-prints the wait, sleeps it, at most ``MAX_WAIT``, and calls again (ADR-0010 decision 5).
+prints the wait, sleeps it, at most ``MAX_WAIT``, and calls again (sdk-core ADR-0033 decision 5).
 A usage cap, ``retry_after`` a billing cycle, stops the run.
 
 Cache. Every page is kept as JSON (``dump_upstream`` of its model) under
@@ -640,7 +640,7 @@ def record_run(cache: Cache, spend: Spend, now: datetime) -> Day:
 
 
 async def with_waits[T](call: Callable[[], Awaitable[T]]) -> T:
-    """``call()``, waiting out a spent rate-limit window and calling again (ADR-0010).
+    """``call()``, waiting out a spent rate-limit window and calling again (sdk-core ADR-0033).
 
     A ``RateLimitError`` whose ``retry_after`` is a window's (``classify``: until
     ``x-rate-limit-reset``) is waited out, at most ``MAX_WAIT``, the wait printed first;
