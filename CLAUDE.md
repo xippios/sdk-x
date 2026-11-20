@@ -20,8 +20,8 @@ follows, sdk-core's conventions among them, are listed under
 The snapshot listed in `docs/upstream/FETCHED.md` is the reference for names, parameters and
 semantics; a wrapper is never written from memory of the API.
 
-Release 0.1.0 ships under sdk-core ADR-0027, X as a metered, content-bearing source
-(`docs/adr/0027-x-metered-content-source.md` in sdk-core), and conventions 1.24.
+Release 0.2.0 ships under sdk-core ADR-0027, X as a metered, content-bearing source
+(`docs/adr/0027-x-metered-content-source.md` in sdk-core), and conventions 1.28.
 
 ## Layout
 

@@ -4,16 +4,89 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/) (pre-1.0: breaking changes bump the minor).
 
-## [Unreleased]
+## [0.2.0] - 2026-11-21
+
+### Added
+
+- `xippios.x.mcp` exports `build()`, the tool set of xippios-core's package contract with
+  the tools' caps, `server`, built from it, and `ENV_VARS`, the variables the package
+  reads, `X_API_KEY`, secret and required, so a host serves the package as `xippios-x-mcp`
+  does. (https://github.com/xippios/sdk-core/issues/245)
 
 ### Changed
 
+- `CLAUDE.md` and the docstrings and comments of the package, its scripts and its tests cite
+  each decision by the pull request that took it, where they gave an internal label, a first
+  name or a date, and a keyed script runs as `direnv exec .` from the clone or a worktree.
+  The account probe's decision line opens with `Decision:`, the two scripts' `--help` and
+  the skip of a live test in the nightly run name no label, and no task's docstring, so no
+  MCP tool's description, changes. (https://github.com/xippios/sdk-x/issues/17)
+- A tool's page past its byte bound keeps the rows that fit, its other fields whole, its
+  `next_token` among them, with a note that counts the rows, where it came back as a note
+  and a preview of its text that lost the `next_token`: minute counts over more than about
+  14 hours keep 200 buckets, and 100 posts of mostly non-Latin text the posts that fit in
+  128,000 bytes. That `next_token` leads past the rows the cut left out, which a call with
+  fewer posts or a shorter range shows. A page that carries `errors` beside `data`, a
+  lookup with a username X does not find among them, and a lookup whose `includes` alone
+  pass the bound still come back as a note and a preview.
+  (https://github.com/xippios/sdk-core/issues/131)
+- `xippios-x-mcp` names itself in its usage line and its errors, an unknown option ending
+  `xippios-x-mcp: error: unrecognized arguments: --bogus`, where they named the server,
+  `xippios-x`. Its help says that `--allow-remote` changes nothing on this read server,
+  which is not held to loopback, where it described the option of a write server.
+  (https://github.com/xippios/sdk-core/issues/167)
+- A tool's error answer sets `isError` on its result beside the text
+  `error: <ErrorClass>: <message>`, X's refusal of a query and a `conversation_id` that is
+  no post id among them, so a client tells a refusal from a page without reading the text,
+  where the result was not flagged. (https://github.com/xippios/sdk-core/issues/168)
+- A paged task's `meta.request` keeps the paging token as sent, `next_token` of
+  `search_recent_posts`, `count_posts` and `get_conversation_posts` and `pagination_token`
+  of `get_user_posts` and `get_list_posts`, where it read `REDACTED`, so a page's meta says
+  which page it is. The token is X's cursor, not a credential.
+  (https://github.com/xippios/sdk-core/issues/184)
+- `scripts/record_fixture.py` writes a fixture with xippios-core's own writer and without
+  the headers that only identify a request, X's `x-transaction-id` among them, so a new
+  fixture needs no audited entry of the secret scan for it, where every recording carried
+  one. The fixtures recorded before keep theirs.
+  (https://github.com/xippios/sdk-core/issues/161,
+  https://github.com/xippios/sdk-core/issues/125)
+- A route answers an argument that its schema refuses, `granularity=week` sent to
+  `/x/count_posts` say, as problem details before the task runs: HTTP 422,
+  `application/problem+json`, the title `InvalidRequestError` and the detail
+  `granularity: <message>`, without the value given, where FastAPI's own 422 listed its
+  error details with the input. (https://github.com/xippios/sdk-core/issues/66)
+- Adopts sdk-template v0.3.4, from v0.3.1, with conventions 1.27 and no new core minor: the
+  floor stays `xippios-core~=0.3.0`, and no module or test changes. The README lists the
+  documents a change follows under `## Documents`, and `CLAUDE.md` takes the place of
+  `.claude/family.md`, which the update deletes, and cites sdk-core's records as
+  `sdk-core ADR-NNNN`. (https://github.com/xippios/sdk-template/releases/tag/v0.3.4,
+  https://github.com/xippios/sdk-x/issues/16)
 - Adopted sdk-template v0.3.1 (conventions §15), with no new core minor: the floor stays
   `xippios-core~=0.3.0`. `.github/CODEOWNERS` is rendered from the template's answers and
   names the code owner whom GitHub asks to review a change to `.github/`, `CLAUDE.md`,
   `.claude/`, `pyproject.toml` or `.copier-answers.yml`; `.gitignore` leaves copier's
   `*.rej` and `*.orig` out; `.claude/family.md`, `/adopt-release`, `/release-prep` and the
   PR template no longer have the author of a pull request merge it.
+
+### Breaking
+
+- `xippios.x.params` and `xippios.x.enums` are gone, with the empty `reference/` directory
+  and the script that would have filled them, since the package packages no list. They
+  held none: `params.PACKAGED_LISTS` was an empty tuple and `enums` defined no
+  enumeration. A caller that imported either drops the import; X's value sets stay the
+  enumerations of `xippios.x.models`, `UserField`, `PostField` and `Granularity` among
+  them. (https://github.com/xippios/sdk-template/issues/40,
+  https://github.com/xippios/sdk-x/pull/49)
+- A tool refuses an argument that it does not declare before it runs, whatever its value,
+  where the argument was dropped and the tool ran without it: `x_get_user_posts` called
+  with `maxresults` answers `error: InvalidRequestError: maxresults: Not an argument of
+  this tool`, then names the five it takes, where it returned the default page of 10 posts
+  and spent their credits. (https://github.com/xippios/sdk-core/issues/84)
+- Adopts sdk-template v0.4.0, from v0.3.4, with `core_version=0.4.0`. The package depends
+  on `xippios-core~=0.4.0`, its extras likewise, where it depended on `~=0.3.0`, follows
+  conventions 1.28 and answers `has_reference_data=false`, as a source that packages no
+  list does. (https://github.com/xippios/sdk-template/releases/tag/v0.4.0,
+  https://github.com/xippios/sdk-x/issues/48)
 
 ## [0.1.0] - 2026-10-30
 
