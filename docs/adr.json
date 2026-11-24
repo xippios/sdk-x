@@ -1,3 +1,18 @@
 {
-  "records": []
+  "records": [
+    {
+      "id": "ADR-0001",
+      "number": 1,
+      "title": "X as a metered, content-bearing source",
+      "path": "docs/adr/0001-x-metered-content-source.md",
+      "status": "Accepted",
+      "date": "2026-10-30",
+      "decided_by": "https://github.com/xippios/sdk-core/pull/36",
+      "amended": [],
+      "amends": [],
+      "supersedes": [],
+      "other": [],
+      "superseded_by": null
+    }
+  ]
 }
