@@ -52,10 +52,9 @@ handling and the recording accounts, on 2026-10-29. The account probe of 2026-10
 over 59 curated accounts (345 requests) measured 49 of them, 36 active and 32 core in 9
 categories, and the maintainer answered go on 2026-10-29, bounding a tool call at 0.50
 USD for posts and 1.00 USD for users (decision 4). On 2026-10-30 he kept the per-tool
-caps. sdk-x's `CLAUDE.md` records each answer. The family drafted this record from
-sdk-x's plan; the usage-cap fallback, the recorder's search and List guards, the List
-posts fixture and `lookup_users`' `most_recent_post` are sdk-x's own decisions, taken in
-its work and not by the maintainer.
+caps. The family drafted this record; the usage-cap fallback, the recorder's search and
+List guards, the List posts fixture and `lookup_users`' `most_recent_post` are sdk-x's
+own decisions, taken in its work and not by the maintainer.
 
 ## Decision
 
